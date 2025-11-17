@@ -259,6 +259,7 @@ impl Parser {
         match token {
             Token::IntegerLiteral(n) => Ok(Expr::IntegerLiteral(n)),
             Token::StringLiteral(s) => Ok(Expr::StringLiteral(s)),
+            Token::BooleanLiteral(b) => Ok(Expr::BooleanLiteral(b)), // <- handle booleans
             Token::Identifier(id) => Ok(Expr::Identifier(id)),
 
             Token::LeftParen(_) => {

@@ -20,6 +20,7 @@ pub fn lex_program(program: &str) -> Vec<Token> {
         "LessThan",
         "IntegerLiteral",
         "StringLiteral",
+        "BooleanLiteral",
         "Identifier",
     ];
 

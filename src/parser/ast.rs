@@ -4,6 +4,7 @@ pub enum Expr { // Expr is something that produces value
     IntegerLiteral(i32),
     StringLiteral(String),
     Identifier(String),
+    BooleanLiteral(bool),
     Binary {
         left: Box<Expr>,   
         op: BinOp,         

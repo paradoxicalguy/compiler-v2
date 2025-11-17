@@ -29,6 +29,7 @@ pub enum Token {
     // logical operators
     GreaterThan(String),
     LessThan(String),
+    BooleanLiteral(bool)
 }
 
 impl Token {
@@ -47,7 +48,7 @@ impl Token {
             "LeftParen" => Token::LeftParen("(".to_string()),
             "RightParen" => Token::RightParen(")".to_string()),
             "LeftBrace" => Token::LeftBrace("{".to_string()),
-            "RightBrace" => Token::RightBrace("{".to_string()),
+            "RightBrace" => Token::RightBrace("}".to_string()),
             "GreaterThan" => Token::GreaterThan(">".to_string()),
             "LessThan" => Token::LessThan("<".to_string()),
             "Minus" => Token::Minus("-".to_string()),
@@ -64,6 +65,7 @@ impl Token {
             "Int" => r"int\s+",
             "IntegerLiteral" => r"\d+",
             "StringLiteral" => r#"\".*\""#,
+            "BooleanLiteral" => r"\b(?:true|false)\b", 
             "Identifier" => r"[a-zA-Z_][a-zA-Z0-9_]* =",
             "Plus" => r"\+",
             "Assign" => r"=",

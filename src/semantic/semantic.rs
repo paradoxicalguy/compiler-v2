@@ -167,6 +167,7 @@ impl SemanticAnalyzer {
         match expr {
             Expr::IntegerLiteral(_) => Type::Int,
             Expr::StringLiteral(_) => Type::String,
+            Expr::BooleanLiteral(_) => Type::Bool, // <- handle boolean literals
             Expr::Identifier(name) => self.check_identifier(name),
             Expr::Binary { left, op, right } => self.check_binary_expression(left, op, right),
             Expr::Assign { name, value } => self.check_assignment(name, value),
