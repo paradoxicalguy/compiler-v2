@@ -8,8 +8,8 @@ pub struct Parser {
 
 #[derive(Debug)]
 pub enum ParseError {
-    unexpectedToken(String),
-    unexpectedEOF,
+    UnexpectedToken(String),
+    UnexpectedToken,
 }
 
 impl Parser {
@@ -25,7 +25,7 @@ impl Parser {
     fn current(&self) -> Result<&Token, ParseError> {
         self.tokens
             .get(self.position)
-            .ok_or(ParseError::unexpectedEOF)
+            .ok_or(ParseError::UnexpectedToken)
     }
 
     fn peek(&self, offset: usize) -> Option<&Token> {
@@ -54,7 +54,7 @@ impl Parser {
             self.advance();
             Ok(())
         } else {
-            Err(ParseError::unexpectedToken(format!(
+            Err(ParseError::UnexpectedToken(format!(
                 "expected {}, found {:?}",
                 expected, token
             )))
@@ -83,7 +83,7 @@ impl Parser {
             Token::If(_) => self.parse_if(),
             Token::Int(_) => self.parse_var_declaration(),
 
-            _ => Err(ParseError::unexpectedToken(format!(
+            _ => Err(ParseError::UnexpectedToken(format!(
                 "expected statement, found {:?}",
                 token
             ))),
@@ -107,7 +107,7 @@ impl Parser {
         let name = match self.current()? {
             Token::Identifier(id) => id.clone(),
             _ => {
-                return Err(ParseError::unexpectedToken(
+                return Err(ParseError::UnexpectedToken(
                     "expected identifier after int".into(),
                 ))
             }
@@ -117,7 +117,7 @@ impl Parser {
         match self.current()? {
             Token::Assign(_) => self.advance(),
             _ => {
-                return Err(ParseError::unexpectedToken(
+                return Err(ParseError::UnexpectedToken(
                     "expected '=' in variable declaration".into(),
                 ))
             }
@@ -189,7 +189,7 @@ impl Parser {
                     value: Box::new(value),
                 });
             } else {
-                return Err(ParseError::unexpectedToken(
+                return Err(ParseError::UnexpectedToken(
                     "left side of assignment must be an identifier".into(),
                 ));
             }
@@ -267,7 +267,7 @@ impl Parser {
                 Ok(expr)
             }
 
-            _ => Err(ParseError::unexpectedToken(format!(
+            _ => Err(ParseError::UnexpectedToken(format!(
                 "expected expression, found {:?}",
                 token
             ))),

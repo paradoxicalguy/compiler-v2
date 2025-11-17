@@ -9,6 +9,7 @@ pub fn lex_program(program: &str) -> Vec<Token> {
         "Else",
         "Int",
         "Plus",
+        "Minus",
         "Assign",
         "SemiColon",
         "LeftParen",

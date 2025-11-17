@@ -18,7 +18,7 @@ pub enum Token {
     // operators 
     Plus(String),
     Assign(String),
-
+    
     // punctuation
     SemiColon(String),
     LeftParen(String),
