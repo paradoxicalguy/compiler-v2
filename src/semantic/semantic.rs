@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::ast::{Expr, Stmt, BinOp};
 
-/// Types supported by the language
+// types supported by the language
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Int,
@@ -10,7 +10,7 @@ pub enum Type {
     Unknown,
 }
 
-/// Semantic errors produced during analysis
+// semantic errors produced during analysis
 #[derive(Debug, Clone)]
 pub enum SemanticError {
     UndeclaredVariable(String),
@@ -23,7 +23,7 @@ pub enum SemanticError {
     },
 }
 
-/// The semantic analyzer holds scopes (a stack of symbol tables) and collected errors.
+// the semantic analyzer holds scopes (a stack of symbol tables) and collected errors
 pub struct SemanticAnalyzer {
     scopes: Vec<HashMap<String, Type>>,
     errors: Vec<SemanticError>,
@@ -42,13 +42,12 @@ impl SemanticAnalyzer {
     }
 
     fn exit_scope(&mut self) {
-        // safety: we always started with one scope; callers should pair enter/exit
         if self.scopes.len() > 1 {
             self.scopes.pop();
         }
     }
 
-    /// Lookup variable from innermost to outermost scope
+    // lookup variable from innermost to outermost scope
     fn lookup_variable(&self, name: &str) -> Option<Type> {
         for scope in self.scopes.iter().rev() {
             if let Some(t) = scope.get(name) {
@@ -58,8 +57,7 @@ impl SemanticAnalyzer {
         None
     }
 
-    /// Declare a variable in the current (innermost) scope.
-    /// Returns `true` if inserted, `false` if a variable with the same name already exists in current scope.
+    // declare a variable in the innermost scope
     fn declare_variable(&mut self, name: &str, var_type: Type) -> bool {
         let current_scope = self.scopes.last_mut().expect("always at least one scope");
         if current_scope.contains_key(name) {
@@ -73,7 +71,7 @@ impl SemanticAnalyzer {
         self.errors.push(err);
     }
 
-    /// Analyze a list of statements (program). Returns Ok if no semantic errors; otherwise returns the errors.
+    // analyze a list of statements (program), eturns Ok if no semantic errors; otherwise returns the errors.
     pub fn analyze(&mut self, statements: &[Stmt]) -> Result<(), Vec<SemanticError>> {
         for stmt in statements {
             self.check_statement(stmt);
@@ -86,7 +84,7 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Single entry for statements
+    // single entry for statements
     fn check_statement(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::VarDeclaration { name, value } => {
@@ -102,23 +100,23 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Handle `int name = value;` declarations.
-    /// Note: parser only allows `int` declarations, so we treat the declared type as `Int`.
+    // handle `int name = value;` declarations
+    // note: parser only allows `int` declarations, so we treat the declared type as `Int`
     fn check_var_declaration(&mut self, name: &str, value: &Expr) {
-        // If already declared in current scope -> redeclaration error
+        // if already declared in current scope -> redeclaration error
         let current_scope = self.scopes.last().expect("at least one scope");
         if current_scope.contains_key(name) {
             self.add_error(SemanticError::Redeclaration(name.to_string()));
             return;
         }
 
-        // Evaluate initializer type
+        // evaluate initializer type
         let value_type = self.check_expression(value);
 
-        // Declared type is Int (because your parser uses `int`)
+        // declared type is Int (because your parser uses `int`)
         let declared_type = Type::Int;
 
-        // If initializer's type is known and doesn't match declared type -> type mismatch
+        // if initializer's type is known and doesn't match declared type -> type mismatch
         if value_type != Type::Unknown && value_type != declared_type {
             self.add_error(SemanticError::TypeMismatch {
                 expected: declared_type.clone(),
@@ -127,16 +125,16 @@ impl SemanticAnalyzer {
             });
         }
 
-        // Insert the variable into current scope with the declared type (even if initializer mismatched)
+        // insert the variable into current scope with the declared type (even if initializer mismatched)
         // (alternatively you could skip insertion on mismatch; this choice keeps semantics stable)
         let current_scope_mut = self.scopes.last_mut().expect("at least one scope");
         current_scope_mut.insert(name.to_string(), declared_type);
     }
 
-    /// Check an if statement: validate condition and check then/else blocks with their own scope
+    // check an if statement: validate condition and check then/else blocks with their own scope
     fn check_if_statement(&mut self, condition: &Expr, then_block: &[Stmt], else_block: &Option<Vec<Stmt>>) {
         let cond_type = self.check_expression(condition);
-        // Condition must be boolean; we added Type::Bool
+        // condition must be boolean; we added Type::Bool
         if cond_type != Type::Bool && cond_type != Type::Unknown {
             self.add_error(SemanticError::TypeMismatch {
                 expected: Type::Bool,
@@ -162,7 +160,7 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Evaluate an expression and return its inferred Type. Add errors when rules are violated.
+    // evaluate an expression and return its inferred Type. Add errors when rules are violated.
     fn check_expression(&mut self, expr: &Expr) -> Type {
         match expr {
             Expr::IntegerLiteral(_) => Type::Int,
@@ -174,7 +172,7 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Identifier usage: return type if found, otherwise add undeclared error and return Unknown.
+    // identifier usage: return type if found, otherwise add undeclared error and return Unknown.
     fn check_identifier(&mut self, name: &str) -> Type {
         match self.lookup_variable(name) {
             Some(t) => t,
@@ -185,10 +183,10 @@ impl SemanticAnalyzer {
         }
     }
 
-    /// Binary expression rules:
-    /// - Add: Int+Int -> Int ; String+String -> String
-    /// - Sub: Int-Int -> Int
-    /// - Greater/Less: Int op Int -> Bool
+    /// binary expression rules:
+    /// - add: int+int -> Int ; string+string -> String
+    /// - sub: int-int -> Int
+    /// - greater/less: int op int -> bool
     fn check_binary_expression(&mut self, left: &Expr, op: &BinOp, right: &Expr) -> Type {
         let left_type = self.check_expression(left);
         let right_type = self.check_expression(right);
