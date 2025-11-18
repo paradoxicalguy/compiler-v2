@@ -11,6 +11,7 @@ pub enum Token {
     // literals
     IntegerLiteral(i32),
     StringLiteral(String),
+    BooleanLiteral(bool),
 
     // identifiers
     Identifier(String),
@@ -29,7 +30,6 @@ pub enum Token {
     // logical operators
     GreaterThan(String),
     LessThan(String),
-    BooleanLiteral(bool)
 }
 
 impl Token {
@@ -66,7 +66,7 @@ impl Token {
             "IntegerLiteral" => r"\d+",
             "StringLiteral" => r#"\".*\""#,
             "BooleanLiteral" => r"\b(?:true|false)\b", 
-            "Identifier" => r"[a-zA-Z_][a-zA-Z0-9_]* =",
+            "Identifier" => r"[a-zA-Z_][a-zA-Z0-9_]*",
             "Plus" => r"\+",
             "Assign" => r"=",
             "SemiColon" => r";",

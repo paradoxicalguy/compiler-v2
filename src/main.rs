@@ -8,9 +8,9 @@ const PROGRAM: &str = "
     int z = x + y;
 
     if (z > 10) {
-        println!(\"hi world\");
+        print(\"hi world\");
     } else {
-     println!(\"bye world\");
+        print(\"bye world\");
     }
 ";
 
