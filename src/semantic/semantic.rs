@@ -255,8 +255,6 @@ impl SemanticAnalyzer {
                 context: format!("cannot assign value of type {:?} to variable '{}' of type {:?}", value_type, name, var_type),
             });
         }
-
-        // assignment expression's type is the value's type (common convention)
         value_type
     }
 }

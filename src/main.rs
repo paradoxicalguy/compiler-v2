@@ -7,10 +7,10 @@ const PROGRAM: &str = "
     int y = 6;
     int z = x + y;
 
-    if (z > 10) {
-        print(\"hi world\");
+    if (z > 0) {
+        print(\"hihi\");
     } else {
-        print(\"bye world\");
+        print(\"haha\");
     }
 ";
 

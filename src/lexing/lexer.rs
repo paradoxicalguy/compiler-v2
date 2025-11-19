@@ -5,28 +5,33 @@ pub fn lex_program(program: &str) -> Vec<Token> {
     let current_input = program;
 
     let tokens = [
+        // keywords
         "Print",
         "If",
         "Else",
         "Int",
 
+        // literals
         "BooleanLiteral",
         "IntegerLiteral",
         "StringLiteral",
 
+        // operators
         "Plus",
         "Minus",
         "Assign",
         "GreaterThan",
         "LessThan",
 
+        // punctuation
         "LeftParen",
         "RightParen",
         "LeftBrace",
         "RightBrace",
         "SemiColon",
 
-        "Identifier", 
+        // identifiers
+        "Identifier",
     ];
 
     let mut match_vec: Vec<(&str, usize, usize)> = Vec::new();
@@ -40,9 +45,6 @@ pub fn lex_program(program: &str) -> Vec<Token> {
         }
     }
 
-    // Sort by:
-    // 1. start position ascending
-    // 2. length descending (longest match wins)
     match_vec.sort_by(|a, b| {
         a.1.cmp(&b.1)
             .then_with(|| (b.2 - b.1).cmp(&(a.2 - a.1)))
@@ -52,7 +54,6 @@ pub fn lex_program(program: &str) -> Vec<Token> {
     let mut last_end = 0;
 
     for (token_type, start, end) in match_vec {
-        // Skip overlapping tokens (common lexer conflict)
         if start < last_end {
             continue;
         }

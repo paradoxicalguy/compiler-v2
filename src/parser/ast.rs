@@ -1,16 +1,15 @@
-
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr { // Expr is something that produces value
+pub enum Expr {
     IntegerLiteral(i32),
     StringLiteral(String),
     Identifier(String),
     BooleanLiteral(bool),
     Binary {
-        left: Box<Expr>,   
-        op: BinOp,         
-        right: Box<Expr>,  
+        left: Box<Expr>,
+        op: BinOp,
+        right: Box<Expr>,
     },
-    Assign {           
+    Assign {
         name: String,
         value: Box<Expr>,
     },
@@ -18,25 +17,26 @@ pub enum Expr { // Expr is something that produces value
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinOp {
-    Add,         
+    Add,
     Sub,
-    GreaterThan, 
-    LessThan,    
+    GreaterThan,
+    LessThan,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Print(Expr),
     VarDeclaration {
-        name: String,  
-        value: Expr,   
+        name: String,
+        value: Expr,
     },
     If {
-        condition: Expr,              
-        then_block: Vec<Stmt>,        
+        condition: Expr,
+        then_block: Vec<Stmt>,
         else_block: Option<Vec<Stmt>>,
     },
 }
+
 
 // first we create an enum of Expr, which has all type of Expr we can face in the code and 
 // a binary Expr which has operators in it, then a statement enum which has print and it takes Expr as 
