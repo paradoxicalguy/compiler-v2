@@ -1,4 +1,4 @@
-use crate::token::Token;
+use crate::lexing::token::Token;
 use crate::ast::{Expr, Stmt, BinOp};
 
 pub struct Parser {
@@ -9,7 +9,6 @@ pub struct Parser {
 #[derive(Debug)]
 pub enum ParseError {
     UnexpectedToken(String),
-    UnexpectedToken,
 }
 
 impl Parser {
@@ -25,11 +24,9 @@ impl Parser {
     fn current(&self) -> Result<&Token, ParseError> {
         self.tokens
             .get(self.position)
-            .ok_or(ParseError::UnexpectedToken)
-    }
-
-    fn peek(&self, offset: usize) -> Option<&Token> {
-        self.tokens.get(self.position + offset)
+            .ok_or(ParseError::UnexpectedToken(
+                "unexpected end of input".into(),
+            ))
     }
 
     fn advance(&mut self) {
@@ -82,7 +79,6 @@ impl Parser {
             Token::Print(_) => self.parse_print(),
             Token::If(_) => self.parse_if(),
             Token::Int(_) => self.parse_var_declaration(),
-
             _ => Err(ParseError::UnexpectedToken(format!(
                 "expected statement, found {:?}",
                 token
@@ -179,9 +175,9 @@ impl Parser {
     fn parse_assignment(&mut self) -> Result<Expr, ParseError> {
         let left = self.parse_comparison()?;
 
-        if let Ok(Token::Assign(_)) = self.current() {
+        if matches!(self.current(), Ok(Token::Assign(_))) {
             self.advance(); // consume '='
-            let value = self.parse_assignment()?; // assignment is right-associative
+            let value = self.parse_assignment()?; // right-associative
 
             if let Expr::Identifier(name) = left {
                 return Ok(Expr::Assign {
@@ -253,25 +249,27 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
-        let token = self.current()?.clone();
-        self.advance();
+    // Get an owned Token so we don't hold a reference to self.tokens
+    let token = self.current().cloned()?;
+    self.advance();
 
-        match token {
-            Token::IntegerLiteral(n) => Ok(Expr::IntegerLiteral(n)),
-            Token::StringLiteral(s) => Ok(Expr::StringLiteral(s)),
-            Token::BooleanLiteral(b) => Ok(Expr::BooleanLiteral(b)), 
-            Token::Identifier(id) => Ok(Expr::Identifier(id)),
+    match token {
+        Token::IntegerLiteral(n) => Ok(Expr::IntegerLiteral(n)),
+        Token::StringLiteral(s) => Ok(Expr::StringLiteral(s)),
+        Token::BooleanLiteral(b) => Ok(Expr::BooleanLiteral(b)),
+        Token::Identifier(id) => Ok(Expr::Identifier(id)),
 
-            Token::LeftParen(_) => {
-                let expr = self.parse_expression()?;
-                self.expect("right_paren")?;
-                Ok(expr)
-            }
-
-            _ => Err(ParseError::UnexpectedToken(format!(
-                "expected expression, found {:?}",
-                token
-            ))),
+        Token::LeftParen(_) => {
+            let expr = self.parse_expression()?;
+            self.expect("right_paren")?;
+            Ok(expr)
         }
+
+        _ => Err(ParseError::UnexpectedToken(format!(
+            "expected expression, found {:?}",
+            token
+        ))),
     }
+}
+
 }

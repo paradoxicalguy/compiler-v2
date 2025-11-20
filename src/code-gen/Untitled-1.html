@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABHINAV // SYSTEM_OVERRIDE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;400;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* CORE AESTHETICS */
+        :root {
+            --neon-green: #00ff41;
+            --neon-pink: #ff00ff;
+            --dark-bg: #050505;
+            --grid-line: #1a1a1a;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: hidden;
+            cursor: crosshair;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--neon-green);
+            border-radius: 0;
+        }
+
+        /* CRT SCANLINE EFFECT */
+        .crt::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 50;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        /* GLITCH TEXT ANIMATION */
+        .glitch-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .glitch {
+            position: relative;
+            color: var(--neon-green);
+            font-weight: 800;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--dark-bg);
+        }
+
+        .glitch::before {
+            left: 2px;
+            text-shadow: -1px 0 var(--neon-pink);
+            clip: rect(24px, 550px, 90px, 0);
+            animation: glitch-anim-2 3s infinite linear alternate-reverse;
+        }
+
+        .glitch::after {
+            left: -2px;
+            text-shadow: -1px 0 #00ffff;
+            clip: rect(85px, 550px, 140px, 0);
+            animation: glitch-anim 2.5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(11px, 9999px, 98px, 0); }
+            20% { clip: rect(86px, 9999px, 13px, 0); }
+            40% { clip: rect(28px, 9999px, 83px, 0); }
+            60% { clip: rect(9px, 9999px, 26px, 0); }
+            80% { clip: rect(58px, 9999px, 6px, 0); }
+            100% { clip: rect(34px, 9999px, 16px, 0); }
+        }
+
+        @keyframes glitch-anim-2 {
+            0% { clip: rect(65px, 9999px, 100px, 0); }
+            20% { clip: rect(12px, 9999px, 58px, 0); }
+            40% { clip: rect(88px, 9999px, 18px, 0); }
+            60% { clip: rect(5px, 9999px, 76px, 0); }
+            80% { clip: rect(39px, 9999px, 29px, 0); }
+            100% { clip: rect(91px, 9999px, 45px, 0); }
+        }
+
+        /* UTILITIES */
+        .border-brutal {
+            border: 2px solid var(--neon-green);
+            box-shadow: 4px 4px 0px var(--neon-green);
+            transition: all 0.1s ease;
+        }
+        .border-brutal:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px var(--neon-green);
+        }
+        
+        .border-brutal-pink {
+            border: 2px solid var(--neon-pink);
+            box-shadow: 4px 4px 0px var(--neon-pink);
+            color: var(--neon-pink);
+        }
+        .border-brutal-pink:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px var(--neon-pink);
+            background-color: rgba(255, 0, 255, 0.1);
+        }
+
+        .glass-panel {
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(4px);
+            border: 1px solid #333;
+        }
+
+        .blink {
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+
+        /* LINK STYLES */
+        .hover-scramble:hover {
+            background-color: var(--neon-green);
+            color: black;
+        }
+    </style>
+</head>
+<body class="crt min-h-screen selection:bg-[#ff00ff] selection:text-white">
+
+    <!-- BACKGROUND CANVAS -->
+    <canvas id="matrixCanvas" class="fixed top-0 left-0 w-full h-full opacity-20 pointer-events-none z-0"></canvas>
+
+    <!-- MAIN CONTAINER -->
+    <main class="relative z-10 max-w-6xl mx-auto p-4 md:p-8 lg:p-12 flex flex-col gap-12">
+
+        <!-- HEADER / HERO -->
+        <header class="glass-panel p-6 md:p-10 border-t-4 border-green-500">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div class="glitch-wrapper">
+                    <h1 class="text-5xl md:text-8xl font-black uppercase tracking-tighter glitch" data-text="ABHINAV">ABHINAV</h1>
+                </div>
+                <div class="mt-4 md:mt-0 text-right">
+                    <div class="text-xs text-gray-500">USER ID</div>
+                    <div class="text-xl text-[#ff00ff] font-bold">@abhinavs279</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                <div>
+                    <p class="text-lg md:text-xl leading-relaxed mb-4">
+                        <span class="text-[#ff00ff]">&gt;</span> hi, i am abhinav.<br>
+                        <span class="text-[#ff00ff]">&gt;</span> i write <span class="bg-[#ff00ff] text-black px-1 font-bold hover:skew-x-12 inline-block transition-transform">[i traumatize people from time to time]</span>.
+                    </p>
+                    <div class="flex gap-2 flex-wrap text-sm mt-6">
+                        <span class="border border-green-500 px-2 py-1">RUST</span>
+                        <span class="border border-green-500 px-2 py-1">WEB3</span>
+                        <span class="border border-green-500 px-2 py-1">DISTRIBUTED_SYSTEMS</span>
+                        <span class="border border-green-500 px-2 py-1">~😎</span>
+                    </div>
+                </div>
+                <div class="flex flex-col justify-end items-end text-right space-y-2 font-bold">
+                    <a href="https://twitter.com/abhinavs279" target="_blank" class="hacker-text hover:text-[#ff00ff] transition-colors" data-value="TWITTER / X">TWITTER / X</a>
+                    <a href="https://rasmalai123.medium.com/" target="_blank" class="hacker-text hover:text-[#ff00ff] transition-colors" data-value="MEDIUM">MEDIUM</a>
+                    <button onclick="copyEmail()" class="hacker-text hover:text-[#ff00ff] transition-colors text-right" data-value="EMAIL_ME">EMAIL_ME</button>
+                    <span id="email-confirm" class="text-xs text-[#ff00ff] opacity-0 transition-opacity">COPIED TO CLIPBOARD</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- WORK / BOOK SECTION -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="md:col-span-2 glass-panel p-6 border-l-4 border-[#ff00ff] relative overflow-hidden group">
+                <div class="absolute top-0 right-0 bg-[#ff00ff] text-black text-xs font-bold px-2 py-1">AUTHOR</div>
+                <h2 class="text-3xl font-bold mb-4 hacker-text" data-value="PUBLISHED_WORK">PUBLISHED_WORK</h2>
+                <p class="mb-6 text-gray-300">My latest book is available now. It might change how you see things.</p>
+                <a href="https://amzn.in/d/2osnd9L" target="_blank" class="inline-block bg-[#ff00ff] text-black font-bold px-6 py-3 border-brutal-pink hover:bg-transparent hover:text-[#ff00ff] transition-all">
+                    BUY THE BOOK <i data-lucide="external-link" class="inline w-4 h-4 ml-2"></i>
+                </a>
+            </div>
+
+            <div class="glass-panel p-6 flex flex-col justify-between border-r-4 border-green-500">
+                <div>
+                    <h3 class="text-xl font-bold mb-2 underline decoration-wavy decoration-[#ff00ff]">STATUS</h3>
+                    <ul class="text-sm space-y-2 text-gray-400">
+                        <li>> fafo'ing rust</li>
+                        <li>> transmundane comedian</li>
+                        <li>> emerging reality</li>
+                    </ul>
+                </div>
+                <div class="mt-4 text-xs text-gray-600">
+                    UPTIME: 2021-2024<br>
+                    MODE: LIVING_FREELY
+                </div>
+            </div>
+        </section>
+
+        <!-- WRITINGS TERMINAL -->
+        <section class="glass-panel p-2 md:p-8">
+            <div class="flex items-center justify-between mb-6 border-b border-gray-800 pb-4">
+                <h2 class="text-2xl md:text-4xl font-bold flex items-center gap-2">
+                    <i data-lucide="terminal" class="w-6 h-6 md:w-8 md:h-8 text-[#ff00ff]"></i>
+                    <span class="hacker-text" data-value="~/WRITINGS">~/WRITINGS</span>
+                </h2>
+                <span class="animate-pulse text-[#ff00ff] text-4xl">_</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="writings-container">
+                <!-- Content injected via JS -->
+            </div>
+            
+            <div class="mt-8 text-center">
+                 <a href="https://purring-tractor-5a3.notion.site/writings-1-2648de970310819787e4f66daa81191c" target="_blank" class="inline-block border border-dashed border-gray-600 text-gray-400 hover:text-white hover:border-white px-4 py-2 text-sm transition-colors">
+                    LOAD_MORE_DATA (+)
+                </a>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="text-center py-12 text-gray-600 text-sm">
+            <p>SYSTEM END OF LINE.</p>
+            <p class="mt-2 font-mono text-[10px]">abhinavsrivastav25098@gmail.com</p>
+        </footer>
+
+    </main>
+
+    <script>
+        // ICONS
+        lucide.createIcons();
+
+        // DATA
+        const writings = [
+            "Why is Sisyphus happy?",
+            "i am not here, this isn’t happening",
+            "empty glass",
+            "chilly",
+            "smile of icarus",
+            "burned",
+            "the last showman",
+            "i forgot to water my plants",
+            "goodbye blue sky",
+            "arbitrary",
+            "night suns",
+            "weird fishes",
+            "to be loved/making coffee",
+            "cold nights.",
+            "is santa real?",
+            "her",
+            "hanging with myself",
+            "emerging reality.",
+            "night"
+        ];
+
+        // POPULATE WRITINGS
+        const container = document.getElementById('writings-container');
+        writings.forEach((title, index) => {
+            const link = document.createElement('a');
+            link.href = "https://rasmalai123.medium.com/"; // Defaulting to Medium as specific links weren't provided
+            link.target = "_blank";
+            link.className = "group block border border-[#1a1a1a] p-3 hover:bg-[#1a1a1a] transition-colors relative overflow-hidden";
+            
+            link.innerHTML = `
+                <div class="text-[10px] text-gray-600 mb-1 font-mono">FILE_0${index + 1}</div>
+                <div class="font-bold text-sm group-hover:text-[#ff00ff] transition-colors truncate">
+                    ${title}
+                </div>
+                <div class="absolute bottom-0 right-0 w-2 h-2 bg-[#ff00ff] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            `;
+            container.appendChild(link);
+        });
+
+        // MATRIX RAIN EFFECT
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        const cols = Math.floor(width / 20);
+        const ypos = Array(cols).fill(0);
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        function matrix() {
+            // Subtle fade effect
+            ctx.fillStyle = '#05050510';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = '#0f0';
+            ctx.font = '12px monospace';
+
+            ypos.forEach((y, ind) => {
+                // Random characters: mix of katakana, binary, and Rust syntax
+                const chars = '01abcdefghijklmnopqrstuvwxyz<>{}[]|=;';
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                const x = ind * 20;
+
+                ctx.fillText(text, x, y);
+
+                if (y > 100 + Math.random() * 10000) ypos[ind] = 0;
+                else ypos[ind] = y + 20;
+            });
+        }
+
+        setInterval(matrix, 50);
+
+        // HACKER TEXT EFFECT (Scramble on Hover)
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%&";
+        
+        document.querySelectorAll('.hacker-text').forEach(element => {
+            element.onmouseover = event => {
+                let iteration = 0;
+                const originalText = event.target.dataset.value;
+                
+                clearInterval(event.target.interval);
+
+                event.target.interval = setInterval(() => {
+                    event.target.innerText = event.target.innerText
+                        .split("")
+                        .map((letter, index) => {
+                            if(index < iteration) {
+                                return originalText[index];
+                            }
+                            return letters[Math.floor(Math.random() * 26)];
+                        })
+                        .join("");
+
+                    if(iteration >= originalText.length) {
+                        clearInterval(event.target.interval);
+                    }
+
+                    iteration += 1 / 3;
+                }, 30);
+            }
+            // Reset on mouseout usually handled by just finishing the loop, 
+            // but to be safe we ensure final state is clean if they leave mid-animation
+            element.onmouseout = event => {
+                 event.target.innerText = event.target.dataset.value;
+                 clearInterval(event.target.interval);
+            }
+        });
+
+        // COPY EMAIL
+        function copyEmail() {
+            const email = "abhinavsrivastav25098@gmail.com";
+            navigator.clipboard.writeText(email).then(() => {
+                const msg = document.getElementById('email-confirm');
+                msg.style.opacity = '1';
+                setTimeout(() => {
+                    msg.style.opacity = '0';
+                }, 2000);
+            });
+        }
+
+    </script>
+</body>
+</html>
