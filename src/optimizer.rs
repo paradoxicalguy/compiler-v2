@@ -3,310 +3,234 @@ use crate::ast::{Expr, Stmt, BinOp};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstValue {
-    Int(i32),      
+    Int(i32),
     String(String),
-    Bool(bool),    
+    Bool(bool),
 }
 
 pub struct Optimizer {
     constants: HashMap<String, ConstValue>,
-    used_variables: HashSet<String>,
+    used_vars: HashSet<String>,
 }
 
 impl Optimizer {
     pub fn new() -> Self {
-        Optimizer {
+        Self {
             constants: HashMap::new(),
-            used_variables: HashSet::new(),
+            used_vars: HashSet::new(),
         }
     }
 
-    pub fn optimize(&mut self, statements: Vec<Stmt>) -> Vec<Stmt> {
-        let mut current = statements;
+    // -------- ENTRY --------
 
-        let mut iteration = 0;
-        loop {
-            iteration += 1;
+    pub fn optimize(&mut self, stmts: Vec<Stmt>) -> Vec<Stmt> {
+        let mut current = stmts;
 
-            let before = format! ("{:?}", current);
+        for _ in 0..10 {
+            self.constants.clear();
+            self.used_vars.clear();
 
-            self.used_variables.clear();
-            self.collect_used_variables(&current);
+            self.collect_used_vars(&current);
+            let optimized = self.optimize_stmts(current);
+            let cleaned = self.dead_code_elimination(optimized.clone());
 
-            current = self.optimize_statements(current);
-            current = self.eliminate_dead_code(current);
-            let after = format!("{:?}", current);
-
-            if before == after {
+            if optimized == current {
                 break;
             }
 
-            if iteration > 100 {
-                eprintln!("warning: optimization didnt converge after 100 iterations");
-                break;
-            }
+            current = cleaned;
         }
+
         current
     }
 
-    pub fn optimize_statement(&mut self, stmt: &Stmt) -> Option<Stmt> {
-        match stmt {
-            Stmt::VarDeclaration {name, value} => {
-                let optimized_value = self.optimize_expression(value);
+    // -------- STATEMENTS --------
 
-                if let Some(const_val) = self.try_evaluate_to_const(&optimized_value) {
-                    self.constants.insert(name.clone(), const_val);
+    fn optimize_stmts(&mut self, stmts: Vec<Stmt>) -> Vec<Stmt> {
+        stmts.into_iter().flat_map(|s| self.optimize_stmt(s)).collect()
+    }
+
+    fn optimize_stmt(&mut self, stmt: Stmt) -> Vec<Stmt> {
+        match stmt {
+            Stmt::VarDeclaration { name, value } => {
+                let value = self.optimize_expr(value);
+
+                if let Some(c) = self.eval_const(&value) {
+                    self.constants.insert(name.clone(), c);
                 } else {
                     self.constants.remove(&name);
                 }
-                Some(Stmt::VarDeclaration {
-                    name, 
-                    value: optimized_value,
-                })
+
+                vec![Stmt::VarDeclaration { name, value }]
             }
 
             Stmt::Print(expr) => {
-                let optimized_expr = self.optimize_expression(expr);
-                Some(Stmt::Print(optimized_expr))
+                vec![Stmt::Print(self.optimize_expr(expr))]
             }
 
-            Stmt::If {condition, then_block, else_block } => {
-                self.optimize_if_statement(condition, then_block, else_block)
+            Stmt::Block(stmts) => {
+                vec![Stmt::Block(self.optimize_stmts(stmts))]
+            }
+
+            Stmt::If { condition, then_block, else_block } => {
+                self.optimize_if(condition, then_block, else_block)
             }
         }
     }
-    
-    fn optimize_if_statement(&mut self, 
+
+    fn optimize_if(
+        &mut self,
         condition: Expr,
         then_block: Vec<Stmt>,
-        else_block: Option<Vec<Stmt>>
-    ) -> Option<Stmt> {
-        let optimized_condition = self.optimize_expression(condition);
+        else_block: Option<Vec<Stmt>>,
+    ) -> Vec<Stmt> {
+        let cond = self.optimize_expr(condition);
 
-        if let Some(const_val) = self.try_evaluate_to_const(&optimized_condition) {
-            match const_val {
-                ConstValue::Bool(true) => {
-                    let optimized_then = self.optimize_statements(then_block);
-
-                    return Some(Stmt::If {
-                        condition: optimized_condition,
-                        then_block: optimized_then,
-                        else_block: None,
-                    });
-                }
-
-                ConstValue::Bool(false) => {
-                    if let Some(else_stmts) = else_block {
-                        let optimized_else = self.optimize_statements(else_stmts);
-                        return Some(Stmt::If {
-                            condition: optimized_condition,
-                            then_block: vec![],
-                            else_block: Some(optimized_else),
-                        });
-                    } else {
-                        return None;
-                    }
-                }
-                _ => {
-
-                }
+        if let Some(ConstValue::Bool(b)) = self.eval_const(&cond) {
+            if b {
+                return self.optimize_stmts(then_block);
+            } else {
+                return else_block.map(self.optimize_stmts).unwrap_or_default();
             }
         }
-        let optimized_then = self.optimize_statements(then_block);
-        let optimized_else = else_block.map(|stmts| self.optimize_statements(stmts));
 
-        Some(Stmt::If {
-            condition: optimized_condition,
-            then_block: optimized_then,
-            else_block: optimized_else
-        })
+        vec![Stmt::If {
+            condition: cond,
+            then_block: self.optimize_stmts(then_block),
+            else_block: else_block.map(|b| self.optimize_stmts(b)),
+        }]
     }
 
-    fn optimize_expression(&self, expr: Expr) -> Expr {
-        match expr {
-            Expr::IntegerLiteral(_) | Expr::StringLiteral(_) => expr,
+    // -------- EXPRESSIONS --------
 
+    fn optimize_expr(&mut self, expr: Expr) -> Expr {
+        match expr {
             Expr::Identifier(name) => {
-                if let Some(const_val) = self.constants.get(&name) {
-                    match const_val {
+                if let Some(c) = self.constants.get(&name) {
+                    match c {
                         ConstValue::Int(n) => Expr::IntegerLiteral(*n),
                         ConstValue::String(s) => Expr::StringLiteral(s.clone()),
-                        ConstValue::Bool(_b) => {
-                            Expr::Identifier(name)
-                        }
+                        ConstValue::Bool(b) => Expr::BooleanLiteral(*b),
                     }
                 } else {
                     Expr::Identifier(name)
                 }
             }
-            Expr::Binary {left, op, right} => {
-                self.optimize_binary_expression(*left, op, *right)
+
+            Expr::Binary { left, op, right } => {
+                self.optimize_binary(*left, op, *right)
             }
-            Expr::Assign {name, value} => {
-                let optimized_value = self.optimize_expression(*value);
-                Expr::Assign {
-                    name, 
-                    value: Box::new(optimized_value),
-                }
+
+            Expr::Assign { name, value } => {
+                let v = self.optimize_expr(*value);
+                self.constants.remove(&name);
+                Expr::Assign { name, value: Box::new(v) }
             }
+
+            _ => expr,
         }
     }
 
-    fn optimize_binary_expression (&self, left:  Expr, op: BinOp, right: Expr) -> Expr {
-        let opt_left = self.optimize_expression(left);
-        let opt_right = self.optimize_expression(right);
+    fn optimize_binary(&mut self, left: Expr, op: BinOp, right: Expr) -> Expr {
+        let l = self.optimize_expr(left);
+        let r = self.optimize_expr(right);
 
-        let left_const = self.try_evaluate_to_const(&opt_left);
-        let right_const = self.try_evaluate_to_const(&opt_right);
-
-        if let (Some(l), Some(r)) = (&left_const, &right_const) {
-            if let Some(result) = self.fold_binary_operation(l, &op, r) {
+        if let (Some(lc), Some(rc)) = (self.eval_const(&l), self.eval_const(&r)) {
+            if let Some(result) = self.fold(lc, &op, rc) {
                 return result;
             }
         }
 
-        match op {
-            BinOp::Add => {
-                if let Some(ConstValue::Int(0)) = right_const {
-                    return opt_left;
-                }
-                if let Some(ConstValue::Int(0)) = left_const {
-                    return opt_right;
+        match (&op, &l, &r) {
+            (BinOp::Add, Expr::IntegerLiteral(0), _) => r,
+            (BinOp::Add, _, Expr::IntegerLiteral(0)) => l,
+            (BinOp::Sub, _, Expr::IntegerLiteral(0)) => l,
+            _ => Expr::Binary {
+                left: Box::new(l),
+                op,
+                right: Box::new(r),
+            },
+        }
+    }
+
+    // -------- CONSTANT FOLDING --------
+
+    fn eval_const(&self, expr: &Expr) -> Option<ConstValue> {
+        match expr {
+            Expr::IntegerLiteral(n) => Some(ConstValue::Int(*n)),
+            Expr::StringLiteral(s) => Some(ConstValue::String(s.clone())),
+            Expr::BooleanLiteral(b) => Some(ConstValue::Bool(*b)),
+            _ => None,
+        }
+    }
+
+    fn fold(&self, l: ConstValue, op: &BinOp, r: ConstValue) -> Option<Expr> {
+        match (l, op, r) {
+            (ConstValue::Int(a), BinOp::Add, ConstValue::Int(b)) =>
+                Some(Expr::IntegerLiteral(a + b)),
+
+            (ConstValue::Int(a), BinOp::Sub, ConstValue::Int(b)) =>
+                Some(Expr::IntegerLiteral(a - b)),
+
+            (ConstValue::Int(a), BinOp::GreaterThan, ConstValue::Int(b)) =>
+                Some(Expr::BooleanLiteral(a > b)),
+
+            (ConstValue::Int(a), BinOp::LessThan, ConstValue::Int(b)) =>
+                Some(Expr::BooleanLiteral(a < b)),
+
+            (ConstValue::String(a), BinOp::Add, ConstValue::String(b)) =>
+                Some(Expr::StringLiteral(format!("{}{}", a, b))),
+
+            _ => None,
+        }
+    }
+
+    // -------- DEAD CODE --------
+
+    fn collect_used_vars(&mut self, stmts: &[Stmt]) {
+        for s in stmts {
+            self.collect_stmt(s);
+        }
+    }
+
+    fn collect_stmt(&mut self, stmt: &Stmt) {
+        match stmt {
+            Stmt::VarDeclaration { value, .. } => self.collect_expr(value),
+            Stmt::Print(e) => self.collect_expr(e),
+            Stmt::If { condition, then_block, else_block } => {
+                self.collect_expr(condition);
+                then_block.iter().for_each(|s| self.collect_stmt(s));
+                if let Some(b) = else_block {
+                    b.iter().for_each(|s| self.collect_stmt(s));
                 }
             }
+            Stmt::Block(stmts) => stmts.iter().for_each(|s| self.collect_stmt(s)),
+        }
+    }
 
-            BinOp::Sub => {
-                if let Some(ConstValue::Int(0)) = right_const {
-                    return opt_left;
-                }
-                if let (Expr::Identifier(l), Expr::Identifier(r)) = (&opt_left, &opt_right) {
-                    if l == r {
-                        return Expr::IntegerLiteral(0);
-                    }
-                }
+    fn collect_expr(&mut self, expr: &Expr) {
+        match expr {
+            Expr::Identifier(n) => {
+                self.used_vars.insert(n.clone());
+            }
+            Expr::Binary { left, right, .. } => {
+                self.collect_expr(left);
+                self.collect_expr(right);
+            }
+            Expr::Assign { name, value } => {
+                self.used_vars.insert(name.clone());
+                self.collect_expr(value);
             }
             _ => {}
         }
-
-        Expr::Binary {
-            left: Box::new(opt_left),
-            op,
-            right: Box::new(opt_right),
-        }
     }
 
-    fn try_evaluate_to_const(&self, expr: &Expr) -> Option<ConstValue> {
-        match expr {
-            Expr::IntegerLiteral(n) => Some(ConstValue::Int(*n)),
-            Expr::StringLiteral(s) => Some(ConstValue::String(*s)),
-
-            Expr::Identifier(name) => {
-                self.constants.get(name).cloned()
-            }
-            Expr::Binary {left, op, right} => {
-                let left_val = self.try_evaluate_to_const(left)?;
-                let right_val = self.try_evaluate_to_const(right)?;
-
-                self.fold_binary_operation(&left_val, op, &right_val)
-                    .and_then(|expr| self.try_evaluate_to_const(&expr))
-            }
-
-            Expr::Assign{..} => {
-                None
-            }
-        }
-    }
-
-    fn fold_binary_operation (
-        &self,
-        left: &ConstValue,
-        op: &BinOp,
-        right: &ConstValue,
-    ) -> Option<Expr> {
-        match(left, op, right) {
-                (ConstValue::Int(l), BinOp::Add, ConstValue::Int(r)) => {
-                Some(Expr::IntegerLiteral(l + r))
-            }
-                (ConstValue::Int(l), BinOp::Sub, ConstValue::Int(r)) => {
-                    Some(Expr::IntegerLiteral(l - r))
-            }
-            (ConstValue::Int(l), BinOp::GreaterThan, ConstValue::Int(r)) => {
-                let result = if l > r { 1 } else { 0 };
-                Some(Expr::BooleanLiteral(result))
-            }
-            (ConstValue::Int(l), BinOp::LessThan, ConstValue::Int(r)) => {
-                let result = if l < r { 1 } else { 0 };
-                Some(Expr::BooleanLiteral(result))
-            }
-
-            (ConstValue::String(l), BinOp::Add, ConstValue::String(r)) => {
-                Some(Expr::StringLiteral(format!("{}{}", l, r)))
-            }
-
-            _ => None
-        }
-    }
-    fn collect_used_variables(&mut self, statements: &[Stmt]) {
-
-        for stmt in statements {
-
-            self.collect_used_in_statement(stmt);
-
-        }
-
-    }
-    fn collect_used_in_statement(&mut self, stmt: &Stmt) {
-        match stmt {
-            Stmt::VarDeclaration { name: _, value } => {
-                self.collect_used_in_expression(value);
-            }
-            Stmt::Print(expr) => {
-                self.collect_used_in_expression(expr);
-            }
-
-            Stmt::If { condition, then_block, else_block } => {
-                self.collect_used_in_expression(condition);
-                for stmt in then_block {
-                    self.collect_used_in_statement(stmt);
-                }
-                if let Some(else_stmts) = else_block {
-                    for stmt in else_stmts {
-                        self.collect_used_in_statement(stmt);
-                    }
-                }
-            }
-        }
-    }
-    fn collect_used_in_expression(&mut self, expr: &Expr) {
-        match expr {
-            Expr::IntegerLiteral(_) | Expr::StringLiteral(_) => {
-            }
-            Expr::Identifier(name) => {
-               self.used_variables.insert(name.clone());
-            }
-            Expr::Binary { left, right, .. } => {
-                self.collect_used_in_expression(left);
-                self.collect_used_in_expression(right);
-            }
-
-            Expr::Assign { name, value } => {
-                self.used_variables.insert(name.clone());
-                self.collect_used_in_expression(value);
-            }
-        }
-    }
-    fn eliminate_dead_code(&self, statements: Vec<Stmt>) -> Vec<Stmt> {
-        statements
-            .into_iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::VarDeclaration { ref name, .. } => {
-                    if self.used_variables.contains(name) {
-                        Some(stmt) // Keep it
-                    } else {
-                        None 
-                    }
-                }
-                _ => Some(stmt),
+    fn dead_code_elimination(&self, stmts: Vec<Stmt>) -> Vec<Stmt> {
+        stmts.into_iter()
+            .filter(|s| match s {
+                Stmt::VarDeclaration { name, .. } =>
+                    self.used_vars.contains(name),
+                _ => true,
             })
             .collect()
     }

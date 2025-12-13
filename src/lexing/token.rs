@@ -1,81 +1,81 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    
     // keywords
-    Print(String),
-    If(String),
-    Else(String),
-    Int(String),
-    Minus(String),
+    Print,
+    If,
+    Else,
+    Int,
 
-    // literals
-    IntegerLiteral(i32),
-    StringLiteral(String),
-    BooleanLiteral(bool),
-
-    // identifiers
+    // identifiers & literals
     Identifier(String),
+    IntegerLiteral(i64),
+    StringLiteral(String),
 
-    // operators 
-    Plus(String),
-    Assign(String),
-    
+    // operators
+    Plus,
+    Minus,
+    Assign,
+    GreaterThan,
+    LessThan,
+
     // punctuation
-    SemiColon(String),
-    LeftParen(String),
-    RightParen(String),
-    LeftBrace(String),
-    RightBrace(String),
-
-    // logical operators
-    GreaterThan(String),
-    LessThan(String),
+    SemiColon,
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
 }
 
 impl Token {
     pub fn get_token(token_type: &str, value: Option<&str>) -> Token {
         match token_type {
-
             // keywords
-            "Print" => Token::Print("print".to_string()),
-            "If" => Token::If("if".to_string()),
-            "Else" => Token::Else("else".to_string()),
-            "Int" => Token::Int("int".to_string()),
+            "Print" => Token::Print,
+            "If" => Token::If,
+            "Else" => Token::Else,
+            "Int" => Token::Int,
 
             // literals
             "IntegerLiteral" => {
-                Token::IntegerLiteral(value.unwrap().parse::<i32>().unwrap())
+                Token::IntegerLiteral(
+                    value
+                        .expect("IntegerLiteral requires a value")
+                        .parse::<i64>()
+                        .expect("Invalid integer literal"),
+                )
             }
             "StringLiteral" => {
-                Token::StringLiteral(value.unwrap().to_string())
-            }
-            "BooleanLiteral" => {
-                let val = match value.unwrap() {
-                    "true" => true,
-                    "false" => false,
-                    _ => panic!("invalid boolean literal"),
-                };
-                Token::BooleanLiteral(val)
+                Token::StringLiteral(
+                    value
+                        .expect("StringLiteral requires a value")
+                        .to_string(),
+                )
             }
 
             // identifiers
-            "Identifier" => Token::Identifier(value.unwrap().to_string()),
+            "Identifier" => {
+                Token::Identifier(
+                    value
+                        .expect("Identifier requires a value")
+                        .to_string(),
+                )
+            }
 
             // operators
-            "Plus" => Token::Plus("+".to_string()),
-            "Minus" => Token::Minus("-".to_string()),
-            "Assign" => Token::Assign("=".to_string()),
+            "Plus" => Token::Plus,
+            "Minus" => Token::Minus,
+            "Assign" => Token::Assign,
 
             // punctuation
-            "SemiColon" => Token::SemiColon(";".to_string()),
-            "LeftParen" => Token::LeftParen("(".to_string()),
-            "RightParen" => Token::RightParen(")".to_string()),
-            "LeftBrace" => Token::LeftBrace("{".to_string()),
-            "RightBrace" => Token::RightBrace("}".to_string()),
+            "SemiColon" => Token::SemiColon,
+            "LeftParen" => Token::LeftParen,
+            "RightParen" => Token::RightParen,
+            "LeftBrace" => Token::LeftBrace,
+            "RightBrace" => Token::RightBrace,
 
             // logical operators
-            "GreaterThan" => Token::GreaterThan(">".to_string()),
-            "LessThan" => Token::LessThan("<".to_string()),
+            "GreaterThan" => Token::GreaterThan,
+            "LessThan" => Token::LessThan,
 
             _ => panic!("invalid token type {}", token_type),
         }
@@ -83,17 +83,15 @@ impl Token {
 
     pub fn get_token_regex(token_type: &str) -> String {
         match token_type {
-
             // keywords
-            "Print" => r"print",
-            "If" => r"if",
-            "Else" => r"else",
-            "Int" => r"int\s+",
+            "Print" => r"\bprint\b",
+            "If" => r"\bif\b",
+            "Else" => r"\belse\b",
+            "Int" => r"\bint\b",
 
             // literals
             "IntegerLiteral" => r"\d+",
-            "StringLiteral" => r#"\".*\""#,
-            "BooleanLiteral" => r"\b(?:true|false)\b",
+            "StringLiteral" => r#""[^"]*""#,
 
             // identifiers
             "Identifier" => r"[a-zA-Z_][a-zA-Z0-9_]*",
@@ -115,6 +113,7 @@ impl Token {
             "LessThan" => r"<",
 
             _ => panic!("invalid token type: {}", token_type),
-        }.to_string()
+        }
+        .to_string()
     }
 }

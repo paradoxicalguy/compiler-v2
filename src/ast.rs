@@ -3,7 +3,6 @@ pub enum Expr {
     IntegerLiteral(i32),
     StringLiteral(String),
     Identifier(String),
-    BooleanLiteral(bool),
     Binary {
         left: Box<Expr>,
         op: BinOp,
@@ -35,6 +34,8 @@ pub enum Stmt {
         then_block: Vec<Stmt>,
         else_block: Option<Vec<Stmt>>,
     },
+     Block(Vec<Stmt>),
+    ExprStmt(Expr),
 }
 
 

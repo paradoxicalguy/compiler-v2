@@ -2,8 +2,6 @@ use regex::Regex;
 use crate::lexing::token::Token;
 
 pub fn lex_program(program: &str) -> Vec<Token> {
-    let current_input = program;
-
     let tokens = [
         // keywords
         "Print",
@@ -12,7 +10,6 @@ pub fn lex_program(program: &str) -> Vec<Token> {
         "Int",
 
         // literals
-        "BooleanLiteral",
         "IntegerLiteral",
         "StringLiteral",
 
@@ -30,38 +27,79 @@ pub fn lex_program(program: &str) -> Vec<Token> {
         "RightBrace",
         "SemiColon",
 
-        // identifiers
+        // identifiers (keep LAST)
         "Identifier",
     ];
 
-    let mut match_vec: Vec<(&str, usize, usize)> = Vec::new();
+    let mut matches: Vec<(&str, usize, usize)> = Vec::new();
 
-    for token in tokens.iter() {
-        let token_regex = Token::get_token_regex(token);
-        let re = Regex::new(&token_regex).unwrap();
+    for token_type in tokens {
+        let regex = Regex::new(&Token::get_token_regex(token_type))
+            .expect("invalid regex");
 
-        for m in re.find_iter(current_input) {
-            match_vec.push((token, m.start(), m.end()));
+        for m in regex.find_iter(program) {
+            matches.push((token_type, m.start(), m.end()));
         }
     }
 
-    match_vec.sort_by(|a, b| {
+    // sort by position, then longest match first
+    matches.sort_by(|a, b| {
         a.1.cmp(&b.1)
             .then_with(|| (b.2 - b.1).cmp(&(a.2 - a.1)))
     });
 
-    let mut token_vec = Vec::new();
+    let mut result = Vec::new();
     let mut last_end = 0;
 
-    for (token_type, start, end) in match_vec {
+    for (token_type, start, end) in matches {
         if start < last_end {
             continue;
         }
         last_end = end;
 
-        let lexeme = &current_input[start..end];
-        token_vec.push(Token::get_token(token_type, Some(lexeme)));
+        let lexeme = &program[start..end];
+
+        let token = match token_type {
+            // ---------- keywords ----------
+            "Print" => Token::Print,
+            "If" => Token::If,
+            "Else" => Token::Else,
+            "Int" => Token::Int,
+
+            // ---------- literals ----------
+            "IntegerLiteral" => {
+                let value = lexeme.parse::<i64>().unwrap();
+                Token::IntegerLiteral(value)
+            }
+
+            "StringLiteral" => {
+                // remove surrounding quotes
+                let inner = &lexeme[1..lexeme.len() - 1];
+                Token::StringLiteral(inner.to_string())
+            }   
+
+            // ---------- identifiers ----------
+            "Identifier" => Token::Identifier(lexeme.to_string()),
+
+            // ---------- operators ----------
+            "Plus" => Token::Plus,
+            "Minus" => Token::Minus,
+            "Assign" => Token::Assign,
+            "GreaterThan" => Token::GreaterThan,
+            "LessThan" => Token::LessThan,
+
+            // ---------- punctuation ----------
+            "SemiColon" => Token::SemiColon,
+            "LeftParen" => Token::LeftParen,
+            "RightParen" => Token::RightParen,
+            "LeftBrace" => Token::LeftBrace,
+            "RightBrace" => Token::RightBrace,
+
+            _ => unreachable!("unknown token type"),
+        };
+
+        result.push(token);
     }
 
-    token_vec
+    result
 }

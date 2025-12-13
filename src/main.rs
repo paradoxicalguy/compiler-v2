@@ -4,64 +4,134 @@ mod ast;
 mod semantic;
 mod codegen;
 
+use std::time::Instant;
+use std::process::Command;
+
 use lexing::lexer::lex_program;
 use parser::Parser;
 use semantic::SemanticAnalyzer;
 use codegen::Codegen;
 
-const PROGRAM: &str = "
-    int x = 5;
-    int y = 6;
-    int z = x + y;
-
-    if (z > 0) {
-        print(\"hihi\");
-    } else {
-        print(\"haha\");
+/// Generate a large program by repeating a scoped block.
+/// Each repetition is wrapped in `{}` to avoid redeclaration errors.
+fn make_program(repetitions: usize) -> String {
+    let block = r#"
+    {
+        int a = 5;
+        int b = 6;
+        int c = a + b;
     }
-";
+    "#;
+
+    block.repeat(repetitions)
+}
 
 fn main() {
-    println!("--- LEXING ---");
-    let tokens = lex_program(PROGRAM);
-    for t in &tokens {
-        println!("{:?}", t);
-    }
+    // ================= CONFIG =================
+    let repetitions = 10; // try: 1, 10, 50, 100, 500
+    let program = make_program(repetitions);
 
-    println!("\n--- PARSING ---");
+    println!("benchmarking with {} repeated blocks", repetitions);
+
+    let total_start = Instant::now();
+
+    // ================= LEXING =================
+    let lex_start = Instant::now();
+    let tokens = lex_program(&program);
+    let lex_time = lex_start.elapsed();
+
+    // ================= PARSING =================
+    let parse_start = Instant::now();
     let mut parser = Parser::new(tokens);
     let ast = match parser.parse() {
-        Ok(stmts) => stmts,
+        Ok(ast) => ast,
         Err(e) => {
-            println!("Parse error: {:?}", e);
+            println!("parse error: {:?}", e);
             return;
         }
     };
-    println!("AST = {:#?}", ast);
+    let parse_time = parse_start.elapsed();
 
-    println!("\n--- SEMANTIC ANALYSIS ---");
+    // ================= SEMANTIC =================
+    let semantic_start = Instant::now();
     let mut analyzer = SemanticAnalyzer::new();
-    if let Err(errors) = analyzer.analyze(&ast) {
-        println!("semantic errors:");
+    let semantic_result = analyzer.analyze(&ast);
+    let semantic_time = semantic_start.elapsed();
+
+    if let Err(errors) = &semantic_result {
+        println!("semantic errors ({}):", errors.len());
         for e in errors {
-            println!("{:?}", e);
+            println!("  {:?}", e);
         }
+        // IMPORTANT: do NOT return — keep benchmarking
+    }
+
+    // ================= CODEGEN =================
+    let codegen_start = Instant::now();
+    let asm = Codegen::new().generate(&ast);
+    let codegen_time = codegen_start.elapsed();
+
+    std::fs::write("out.s", &asm).expect("failed to write out.s");
+
+     println!("\n========== GENERATED AARCH64 ASSEMBLY ==========\n");
+
+    // Prevent terminal nuking on huge outputs
+    let max_lines = 300;
+    for (i, line) in asm.lines().enumerate() {
+        if i >= max_lines {
+            println!("... (assembly truncated, {}+ lines total)", asm.lines().count());
+            break;
+        }
+        println!("{}", line);
+    }
+
+    println!("\n========== END ASSEMBLY ==========\n");
+
+    std::fs::write("out.s", &asm).expect("failed to write out.s");
+
+    // ================= ASSEMBLE =================
+    let assemble_start = Instant::now();
+
+    let assemble_status = Command::new("aarch64-linux-gnu-gcc")
+        .args(["-static","out.s", "-o", "out"])
+        .status();
+
+    let assemble_time = assemble_start.elapsed();
+
+    if assemble_status.is_err() || !assemble_status.unwrap().success() {
+        println!("assembly failed");
+        println!("\n--- TIMINGS ---");
+        println!("Lexing:        {:?}", lex_time);
+        println!("Parsing:       {:?}", parse_time);
+        println!("Semantic:      {:?}", semantic_time);
+        println!("Codegen:       {:?}", codegen_time);
+        println!("Assemble:      FAILED");
+        println!("Total:         {:?}", total_start.elapsed());
         return;
     }
-    println!("No semantic errors.");
 
-    println!("\n--- CODE GENERATION (ARM64) ---");
-    let asm = Codegen::new().generate(&ast);
+    // ================= RUNTIME =================
+    let run_start = Instant::now();
 
-    // 🔥 Print assembly in terminal
-    println!("\n--- GENERATED ARM64 ASSEMBLY ---\n");
-    println!("{}", asm);
+    let run_status = Command::new("qemu-aarch64")
+    .args(["./out"])
+    .status();
 
-    // also write to out.s
-    let path = "out.s";
-    std::fs::write(path, asm).expect("failed to write out.s");
+    let run_time = run_start.elapsed();
 
-    println!("\nAssembly also written to {}", path);
-    println!("Compile with:");
-    println!("    aarch64-linux-gnu-gcc out.s -o out");
+    if run_status.is_err() || !run_status.unwrap().success() {
+        println!("runtime execution failed");
+    }
+
+    // ================= TIMINGS =================
+    println!("\n--- TIMINGS ---");
+    println!("Lexing:        {:?}", lex_time);
+    println!("Parsing:       {:?}", parse_time);
+    println!("Semantic:      {:?}", semantic_time);
+    println!("Codegen:       {:?}", codegen_time);
+    println!("Assemble:      {:?}", assemble_time);
+    println!("Runtime:       {:?}", run_time);
+    println!("Total:         {:?}", total_start.elapsed());
+
+    println!("\nexecutable: out.exe");
 }
