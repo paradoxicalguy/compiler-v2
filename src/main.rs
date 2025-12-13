@@ -3,7 +3,6 @@ mod parser;
 mod ast;
 mod semantic;
 mod codegen;
-
 use std::time::Instant;
 use std::process::Command;
 
@@ -17,9 +16,9 @@ use codegen::Codegen;
 fn make_program(repetitions: usize) -> String {
     let block = r#"
     {
-        int a = 5;
-        int b = 6;
-        int c = a + b;
+       int x = "69";
+       int y = "420";
+       int z = "x + y";
     }
     "#;
 
@@ -28,7 +27,7 @@ fn make_program(repetitions: usize) -> String {
 
 fn main() {
     // ================= CONFIG =================
-    let repetitions = 10; // try: 1, 10, 50, 100, 500
+    let repetitions = 1; // try: 1, 10, 50, 100, 500
     let program = make_program(repetitions);
 
     println!("benchmarking with {} repeated blocks", repetitions);
@@ -73,21 +72,21 @@ fn main() {
 
     std::fs::write("out.s", &asm).expect("failed to write out.s");
 
-     println!("\n========== GENERATED AARCH64 ASSEMBLY ==========\n");
+    //  println!("\n========== GENERATED AARCH64 ASSEMBLY ==========\n");
 
-    // Prevent terminal nuking on huge outputs
-    let max_lines = 300;
-    for (i, line) in asm.lines().enumerate() {
-        if i >= max_lines {
-            println!("... (assembly truncated, {}+ lines total)", asm.lines().count());
-            break;
-        }
-        println!("{}", line);
-    }
+    // // Prevent terminal nuking on huge outputs
+    // let max_lines = 300;
+    // for (i, line) in asm.lines().enumerate() {
+    //     if i >= max_lines {
+    //         println!("... (assembly truncated, {}+ lines total)", asm.lines().count());
+    //         break;
+    //     }
+    //     println!("{}", line);
+    // }
 
-    println!("\n========== END ASSEMBLY ==========\n");
+    // println!("\n========== END ASSEMBLY ==========\n");
 
-    std::fs::write("out.s", &asm).expect("failed to write out.s");
+    // std::fs::write("out.s", &asm).expect("failed to write out.s");
 
     // ================= ASSEMBLE =================
     let assemble_start = Instant::now();

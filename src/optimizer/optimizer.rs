@@ -181,6 +181,7 @@ impl Optimizer {
             (ConstValue::String(a), BinOp::Add, ConstValue::String(b)) =>
                 Some(Expr::StringLiteral(format!("{}{}", a, b))),
 
+                println!("FOLDING: {:?} {:?} {:?}", l, op, r);
             _ => None,
         }
     }
