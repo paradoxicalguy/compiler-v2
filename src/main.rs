@@ -29,7 +29,7 @@ fn make_program(repetitions: usize) -> String {
 }
 
 fn main() {
-    // ================= CONFIG =================
+    // config:
     let repetitions = 1; // try: 1, 10, 50, 100, 500
     let program = make_program(repetitions);
 
@@ -37,12 +37,12 @@ fn main() {
 
     let total_start = Instant::now();
 
-    // ================= LEXING =================
+    // lexing:
     let lex_start = Instant::now();
     let tokens = lex_program(&program);
     let lex_time = lex_start.elapsed();
 
-    // ================= PARSING =================
+    // parsing:
     let parse_start = Instant::now();
     let mut parser = Parser::new(tokens);
     let ast = match parser.parse() {
@@ -54,7 +54,7 @@ fn main() {
     };
     let parse_time = parse_start.elapsed();
 
-    // ================= SEMANTIC =================
+    // semantic
     let semantic_start = Instant::now();
     let mut analyzer = SemanticAnalyzer::new();
     let semantic_result = analyzer.analyze(&ast);
@@ -65,33 +65,29 @@ fn main() {
         for e in errors {
             println!("  {:?}", e);
         }
-        // IMPORTANT: do NOT return — keep benchmarking
     }
 
-    // ================= CODEGEN =================
+    // codegen
     let codegen_start = Instant::now();
     let asm = Codegen::new().generate(&ast);
     let codegen_time = codegen_start.elapsed();
 
     std::fs::write("out.s", &asm).expect("failed to write out.s");
 
-    //  println!("\n========== GENERATED AARCH64 ASSEMBLY ==========\n");
+     println!("\n generated assembly: \n");
 
-    // // Prevent terminal nuking on huge outputs
-    // let max_lines = 300;
-    // for (i, line) in asm.lines().enumerate() {
-    //     if i >= max_lines {
-    //         println!("... (assembly truncated, {}+ lines total)", asm.lines().count());
-    //         break;
-    //     }
-    //     println!("{}", line);
-    // }
+    // prevent terminal nuking on huge outputs
+    let max_lines = 300;
+    for (i, line) in asm.lines().enumerate() {
+        if i >= max_lines {
+            println!("... (assembly truncated, {}+ lines total)", asm.lines().count());
+            break;
+        }
+        println!("{}", line);
+    }
 
-    // println!("\n========== END ASSEMBLY ==========\n");
+    std::fs::write("out.s", &asm).expect("failed to write out.s");
 
-    // std::fs::write("out.s", &asm).expect("failed to write out.s");
-
-    // ================= ASSEMBLE =================
     let assemble_start = Instant::now();
 
     let assemble_status = Command::new("aarch64-linux-gnu-gcc")
@@ -102,13 +98,13 @@ fn main() {
 
     if assemble_status.is_err() || !assemble_status.unwrap().success() {
         println!("assembly failed");
-        println!("\n--- TIMINGS ---");
-        println!("Lexing:        {:?}", lex_time);
-        println!("Parsing:       {:?}", parse_time);
-        println!("Semantic:      {:?}", semantic_time);
-        println!("Codegen:       {:?}", codegen_time);
-        println!("Assemble:      FAILED");
-        println!("Total:         {:?}", total_start.elapsed());
+        println!("\n timings: ");
+        println!("lexing:        {:?}", lex_time);
+        println!("parsing:       {:?}", parse_time);
+        println!("semantic:      {:?}", semantic_time);
+        println!("codegen:       {:?}", codegen_time);
+        println!("assemble:      FAILED");
+        println!("total:         {:?}", total_start.elapsed());
         return;
     }
 
