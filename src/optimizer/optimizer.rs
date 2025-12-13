@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use crate::ast::{Expr, Stmt, BinOp};
+use crate::parsing::ast::{Expr, Stmt, BinOp};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConstValue {
@@ -31,7 +31,7 @@ impl Optimizer {
             self.used_vars.clear();
 
             self.collect_used_vars(&current);
-            let optimized = self.optimize_stmts(current);
+            let optimized = self.optimize_stmts(current.clone());
             let cleaned = self.dead_code_elimination(optimized.clone());
 
             if optimized == current {
@@ -75,6 +75,10 @@ impl Optimizer {
             Stmt::If { condition, then_block, else_block } => {
                 self.optimize_if(condition, then_block, else_block)
             }
+            Stmt::ExprStmt(expr) => {
+                vec![Stmt::ExprStmt(self.optimize_expr(expr))]
+            }
+
         }
     }
 
@@ -90,7 +94,10 @@ impl Optimizer {
             if b {
                 return self.optimize_stmts(then_block);
             } else {
-                return else_block.map(self.optimize_stmts).unwrap_or_default();
+                return else_block
+    .map(|b| self.optimize_stmts(b))
+    .unwrap_or_default();
+
             }
         }
 
@@ -111,6 +118,8 @@ impl Optimizer {
                         ConstValue::Int(n) => Expr::IntegerLiteral(*n),
                         ConstValue::String(s) => Expr::StringLiteral(s.clone()),
                         ConstValue::Bool(b) => Expr::BooleanLiteral(*b),
+
+
                     }
                 } else {
                     Expr::Identifier(name)
@@ -159,7 +168,7 @@ impl Optimizer {
         match expr {
             Expr::IntegerLiteral(n) => Some(ConstValue::Int(*n)),
             Expr::StringLiteral(s) => Some(ConstValue::String(s.clone())),
-            Expr::BooleanLiteral(b) => Some(ConstValue::Bool(*b)),
+            // Expr::BooleanLiteral(b) => Some(ConstValue::Bool(*b)),
             _ => None,
         }
     }
@@ -172,16 +181,15 @@ impl Optimizer {
             (ConstValue::Int(a), BinOp::Sub, ConstValue::Int(b)) =>
                 Some(Expr::IntegerLiteral(a - b)),
 
-            (ConstValue::Int(a), BinOp::GreaterThan, ConstValue::Int(b)) =>
-                Some(Expr::BooleanLiteral(a > b)),
+            // (ConstValue::Int(a), BinOp::GreaterThan, ConstValue::Int(b)) =>
+            //     Some(Expr::BooleanLiteral(a > b)),
 
-            (ConstValue::Int(a), BinOp::LessThan, ConstValue::Int(b)) =>
-                Some(Expr::BooleanLiteral(a < b)),
+            // (ConstValue::Int(a), BinOp::LessThan, ConstValue::Int(b)) =>
+            //     Some(Expr::BooleanLiteral(a < b)),
 
             (ConstValue::String(a), BinOp::Add, ConstValue::String(b)) =>
                 Some(Expr::StringLiteral(format!("{}{}", a, b))),
 
-                println!("FOLDING: {:?} {:?} {:?}", l, op, r);
             _ => None,
         }
     }
@@ -206,6 +214,9 @@ impl Optimizer {
                 }
             }
             Stmt::Block(stmts) => stmts.iter().for_each(|s| self.collect_stmt(s)),
+            Stmt::ExprStmt(expr) => {
+               self.collect_expr(expr);
+            }
         }
     }
 

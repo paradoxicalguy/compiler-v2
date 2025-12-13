@@ -1,15 +1,14 @@
-mod lexing;
-mod parser;
-mod ast;
-mod semantic;
-mod codegen;
+
 use std::time::Instant;
 use std::process::Command;
 
-use lexing::lexer::lex_program;
-use parser::Parser;
-use semantic::SemanticAnalyzer;
-use codegen::Codegen;
+use lexical::{
+    lexing::lexer::lex_program,
+    parsing::parser::Parser,
+    semantic::semantic::SemanticAnalyzer,
+    optimizer::optimizer::Optimizer,
+    codegen::arm64::Codegen,
+};
 
 /// Generate a large program by repeating a scoped block.
 /// Each repetition is wrapped in `{}` to avoid redeclaration errors.
@@ -18,7 +17,11 @@ fn make_program(repetitions: usize) -> String {
     {
        int x = "69";
        int y = "420";
-       int z = "x + y";
+       if (x > y) {
+            print(x + y);
+        } else {
+            print(y - x);
+        }
     }
     "#;
 

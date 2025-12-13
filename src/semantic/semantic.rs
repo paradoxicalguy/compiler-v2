@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::ast::{Expr, Stmt, BinOp};
+use crate::parsing::ast::{Expr, Stmt, BinOp};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -157,6 +157,8 @@ impl SemanticAnalyzer {
         match expr {
             Expr::IntegerLiteral(_) => Type::Int,
             Expr::StringLiteral(_) => Type::String,
+            Expr::BooleanLiteral(_) => Type::Bool,
+
 
             Expr::Identifier(name) => {
                 self.lookup(name).unwrap_or_else(|| {

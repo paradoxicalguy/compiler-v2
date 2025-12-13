@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::ast::{Expr, Stmt, BinOp};
+use crate::parsing::ast::{Expr, Stmt, BinOp};
 
 pub struct Codegen {
     data_strings: Vec<(String, String)>,
@@ -191,6 +191,16 @@ impl Codegen {
                 self.emit(format!("\tadd  {}, {}, :lo12:{}", r, r, lbl));
                 r
             }
+            Expr::BooleanLiteral(b) => {
+                let r = self.alloc_tmp();
+                self.emit(format!(
+                    "\tmov {}, #{}",
+                    r,
+                    if *b { 1 } else { 0 }
+                ));
+                r
+            }
+
 
             Expr::Identifier(name) => {
                 let r = self.alloc_tmp();

@@ -2,6 +2,7 @@
 pub enum Expr {
     IntegerLiteral(i32),
     StringLiteral(String),
+    BooleanLiteral(bool), 
     Identifier(String),
     Binary {
         left: Box<Expr>,

@@ -1,5 +1,6 @@
 use crate::lexing::token::Token;
-use crate::ast::{Expr, Stmt, BinOp};
+use crate::parsing::ast::{Expr, Stmt, BinOp};
+
 
 pub struct Parser {
     tokens: Vec<Token>,
