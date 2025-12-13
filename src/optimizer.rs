@@ -8,7 +8,6 @@ pub enum ConstValue {
     Bool(bool),    
 }
 
-
 pub struct Optimizer {
     constants: HashMap<String, ConstValue>,
     used_variables: HashSet<String>,
@@ -18,13 +17,6 @@ impl Optimizer {
     pub fn new() -> Self {
         Optimizer {
             constants: HashMap::new(),
-            used_variables: HashSet::new(),
-        }
-    }
-
-    pub fn new() -> Self {
-        Optimizer {
-            constants: Hashmap::new(),
             used_variables: HashSet::new(),
         }
     }
@@ -58,11 +50,11 @@ impl Optimizer {
     }
 
     pub fn optimize_statement(&mut self, stmt: &Stmt) -> Option<Stmt> {
-        match Stmt {
+        match stmt {
             Stmt::VarDeclaration {name, value} => {
                 let optimized_value = self.optimize_expression(value);
 
-                if let Somme(const_val) = self.try_evaluate_to_const(&optimized_value) {
+                if let Some(const_val) = self.try_evaluate_to_const(&optimized_value) {
                     self.constants.insert(name.clone(), const_val);
                 } else {
                     self.constants.remove(&name);
@@ -96,7 +88,7 @@ impl Optimizer {
                 ConstValue::Bool(true) => {
                     let optimized_then = self.optimize_statements(then_block);
 
-                    return Seome(Stmt::If {
+                    return Some(Stmt::If {
                         condition: optimized_condition,
                         then_block: optimized_then,
                         else_block: None,

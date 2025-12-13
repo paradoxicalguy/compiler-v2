@@ -10,7 +10,6 @@ pub enum Type {
     Unknown,
 }
 
-// semantic errors produced during analysis
 #[derive(Debug, Clone)]
 pub enum SemanticError {
     UndeclaredVariable(String),

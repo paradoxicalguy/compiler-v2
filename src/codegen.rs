@@ -1,6 +1,7 @@
 
 use std::collections::HashMap;
 use crate::ast::{Expr, Stmt, BinOp};
+
 pub struct Codegen {
     data_strings: Vec<(String, String)>,            
     var_offsets: HashMap<String, i32>,              
@@ -35,7 +36,6 @@ impl Codegen {
         for (label, text) in &self.data_strings {
             data_section.push(format!("{}: .asciz {}", label, text));
         }
-
         
         let mut out = String::new();
         out.push_str("\t.data\n");
@@ -231,3 +231,4 @@ impl Codegen {
         }
     }
 }
+
