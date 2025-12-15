@@ -60,13 +60,13 @@ pub fn lex_program(program: &str) -> Vec<Token> {
         let lexeme = &program[start..end];
 
         let token = match token_type {
-            // ---------- keywords ----------
+            // keywords 
             "Print" => Token::Print,
             "If" => Token::If,
             "Else" => Token::Else,
             "Int" => Token::Int,
 
-            // ---------- literals ----------
+            //  literals
             "IntegerLiteral" => {
                 let value = lexeme.parse::<i64>().unwrap();
                 Token::IntegerLiteral(value)
@@ -78,17 +78,17 @@ pub fn lex_program(program: &str) -> Vec<Token> {
                 Token::StringLiteral(inner.to_string())
             }   
 
-            // ---------- identifiers ----------
+            // identifiers
             "Identifier" => Token::Identifier(lexeme.to_string()),
 
-            // ---------- operators ----------
+            // operators 
             "Plus" => Token::Plus,
             "Minus" => Token::Minus,
             "Assign" => Token::Assign,
             "GreaterThan" => Token::GreaterThan,
             "LessThan" => Token::LessThan,
 
-            // ---------- punctuation ----------
+            // punctuation 
             "SemiColon" => Token::SemiColon,
             "LeftParen" => Token::LeftParen,
             "RightParen" => Token::RightParen,

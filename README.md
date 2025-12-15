@@ -1,9 +1,9 @@
-# project-name
+# banana2
 a small compiler with explicit architecture
 
 ---
 
-project-name is a deliberately small compiler written in rust that compiles a
+banana2 is a deliberately small compiler written in rust that compiles a
 simple c-like language into arm64 assembly, assembles it using
 aarch64-linux-gnu-gcc, and executes it via qemu.
 
