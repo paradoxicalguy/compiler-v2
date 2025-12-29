@@ -5,6 +5,8 @@ pub enum Token {
     If,
     Else,
     Int,
+    Maybe,
+    Paywall,
 
     // identifiers & literals
     Identifier(String),
@@ -34,6 +36,8 @@ impl Token {
             "If" => Token::If,
             "Else" => Token::Else,
             "Int" => Token::Int,
+            "Maybe" => Token::Maybe,
+            "Paywall" => Token::Paywall,
 
             // literals
             "IntegerLiteral" => {
@@ -88,6 +92,8 @@ impl Token {
             "If" => r"\bif\b",
             "Else" => r"\belse\b",
             "Int" => r"\bint\b",
+            "Maybe" => r"\bmaybe\b",
+            "Paywall" => r"\bpaywall\b",
 
             // literals
             "IntegerLiteral" => r"\d+",

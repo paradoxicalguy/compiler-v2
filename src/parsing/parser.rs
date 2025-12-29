@@ -56,6 +56,7 @@ impl Parser {
             Some(Token::If) => self.parse_if(),
             Some(Token::Int) => self.parse_var_decl(),
             Some(Token::LeftBrace) => self.parse_block_stmt(),
+            Some(Token::Paywall) => self.parse_paywall(),
             _ => Err(ParseError::UnexpectedToken),
         }
     }
@@ -120,6 +121,23 @@ impl Parser {
             then_block: unwrap_block(then_block),
             else_block: else_block.map(unwrap_block),
         })
+    }
+
+    fn parse_paywall(&mut self) -> Result<Stmt, ParseError> {
+        self.advance(); // consume 'paywall'
+        self.expect(Token::LeftParen)?;
+        
+        // We expect a simple integer literal inside
+        let amount = match self.current() {
+            Some(Token::IntegerLiteral(n)) => *n as i64,
+            _ => return Err(ParseError::UnexpectedToken),
+        };
+        self.advance(); // consume the number
+        
+        self.expect(Token::RightParen)?;
+        self.expect(Token::SemiColon)?;
+        
+        Ok(Stmt::Paywall(amount))
     }
 
     // ----------------- expressions -----------------
@@ -190,6 +208,10 @@ impl Parser {
                 let v = id.clone();
                 self.advance();
                 Ok(Expr::Identifier(v))
+            }
+            Some(Token::Maybe) => {
+                self.advance();
+                Ok(Expr::Maybe)
             }
             Some(Token::LeftParen) => {
                 self.advance();

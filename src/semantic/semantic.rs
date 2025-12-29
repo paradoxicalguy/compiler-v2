@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::{self, Write};
 use crate::parsing::ast::{Expr, Stmt, BinOp};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -98,9 +99,11 @@ impl SemanticAnalyzer {
             self.check_if(condition, then_block, else_block);
         }
 
-        // ✅ THIS FIX
         Stmt::ExprStmt(expr) => {
             self.check_expr(expr);
+        }
+
+        Stmt::Paywall(_) => {
         }
     }
 }
@@ -158,13 +161,25 @@ impl SemanticAnalyzer {
             Expr::IntegerLiteral(_) => Type::Int,
             Expr::StringLiteral(_) => Type::String,
             Expr::BooleanLiteral(_) => Type::Bool,
-
-
+            Expr::Maybe => Type::Bool,
             Expr::Identifier(name) => {
-                self.lookup(name).unwrap_or_else(|| {
-                    self.error(SemanticError::UndeclaredVariable(name.clone()));
-                    Type::Unknown
-                })
+                if let Some(t) = self.lookup(name) {
+                    t 
+                } else {
+                    println!("wait, variable {} is undefined. \n should i pretend its an INT? (y/n:)", name);
+                    io::stdout().flush().unwrap();
+
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input).unwrap();
+                    if input.trim() == "y" {
+                        println!("okay, i'll treat {} as an INT for now", name);
+                        self.current_scope().insert(name.clone(), Type::Int);
+                        Type::Int
+                    } else {
+                        self.error(SemanticError::UndeclaredVariable(name.clone()));
+                        Type::Unknown
+                    }
+                }
             }
 
             Expr::Assign { name, value } => {

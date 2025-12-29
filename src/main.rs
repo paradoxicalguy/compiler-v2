@@ -10,13 +10,11 @@ use lexical::{
     codegen::arm64::Codegen,
 };
 
-/// Generate a large program by repeating a scoped block.
-/// Each repetition is wrapped in `{}` to avoid redeclaration errors.
-fn make_program(repetitions: usize) -> String {
-    let block = r#"
+fn make_program(repetitions: usize, chaos_mode: bool) -> String {
+    let standard_block = r#"
     {
-       int x = "69";
-       int y = "420";
+       int x = 69;
+       int y = 420;
        if (x > y) {
             print(x + y);
         } else {
@@ -25,13 +23,29 @@ fn make_program(repetitions: usize) -> String {
     }
     "#;
 
-    block.repeat(repetitions)
+    let chaos_block = r#"
+    {
+        if (maybe) {
+            print(hihi);
+        } else {
+            print(69);
+        }
+    }
+    paywall(200);
+    print(999999);
+    "#;
+
+    if chaos_mode {
+        chaos_block.repeat(repetitions)
+    } else {
+        standard_block.repeat(repetitions)
+    }
 }
 
 fn main() {
     // config:
     let repetitions = 1; // try: 1, 10, 50, 100, 500
-    let program = make_program(repetitions);
+    let program = make_program(repetitions, true);
 
     println!("benchmarking with {} repeated blocks", repetitions);
 
@@ -67,9 +81,15 @@ fn main() {
         }
     }
 
+    // optimizer
+    let optimize_start = Instant::now();
+    let mut optimizer = Optimizer::new();
+    let optimized_ast = optimizer.optimize(ast);
+    let optimize_time = optimize_start.elapsed();
+
     // codegen
     let codegen_start = Instant::now();
-    let asm = Codegen::new().generate(&ast);
+    let asm = Codegen::new().generate(&optimized_ast);
     let codegen_time = codegen_start.elapsed();
 
     std::fs::write("out.s", &asm).expect("failed to write out.s");
@@ -126,6 +146,7 @@ fn main() {
     println!("Lexing:        {:?}", lex_time);
     println!("Parsing:       {:?}", parse_time);
     println!("Semantic:      {:?}", semantic_time);
+    println!("Optimizer:     {:?}", optimize_time); 
     println!("Codegen:       {:?}", codegen_time);
     println!("Assemble:      {:?}", assemble_time);
     println!("Runtime:       {:?}", run_time);

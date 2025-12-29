@@ -26,12 +26,18 @@ impl Optimizer {
     pub fn optimize(&mut self, stmts: Vec<Stmt>) -> Vec<Stmt> {
         let mut current = stmts;
 
+        // Run up to 10 passes to catch nested optimizations
         for _ in 0..10 {
             self.constants.clear();
             self.used_vars.clear();
 
+            // Pass 1: Analyze usage
             self.collect_used_vars(&current);
+            
+            // Pass 2: Optimize (Fold constants)
             let optimized = self.optimize_stmts(current.clone());
+            
+            // Pass 3: Clean (Remove unused variables)
             let cleaned = self.dead_code_elimination(optimized.clone());
 
             if optimized == current {
@@ -75,10 +81,12 @@ impl Optimizer {
             Stmt::If { condition, then_block, else_block } => {
                 self.optimize_if(condition, then_block, else_block)
             }
+            
             Stmt::ExprStmt(expr) => {
                 vec![Stmt::ExprStmt(self.optimize_expr(expr))]
             }
-
+            
+            Stmt::Paywall(n) => vec![Stmt::Paywall(n)],
         }
     }
 
@@ -90,14 +98,15 @@ impl Optimizer {
     ) -> Vec<Stmt> {
         let cond = self.optimize_expr(condition);
 
+        // Control Flow Simplification
+        // If we know the boolean result at compile time, we delete the dead branch.
         if let Some(ConstValue::Bool(b)) = self.eval_const(&cond) {
             if b {
                 return self.optimize_stmts(then_block);
             } else {
                 return else_block
-    .map(|b| self.optimize_stmts(b))
-    .unwrap_or_default();
-
+                    .map(|b| self.optimize_stmts(b))
+                    .unwrap_or_default();
             }
         }
 
@@ -118,8 +127,6 @@ impl Optimizer {
                         ConstValue::Int(n) => Expr::IntegerLiteral(*n),
                         ConstValue::String(s) => Expr::StringLiteral(s.clone()),
                         ConstValue::Bool(b) => Expr::BooleanLiteral(*b),
-
-
                     }
                 } else {
                     Expr::Identifier(name)
@@ -132,6 +139,7 @@ impl Optimizer {
 
             Expr::Assign { name, value } => {
                 let v = self.optimize_expr(*value);
+                // If a variable is reassigned, its known constant value is invalid
                 self.constants.remove(&name);
                 Expr::Assign { name, value: Box::new(v) }
             }
@@ -144,12 +152,14 @@ impl Optimizer {
         let l = self.optimize_expr(left);
         let r = self.optimize_expr(right);
 
+        // Constant Folding (e.g., 2 + 2 -> 4)
         if let (Some(lc), Some(rc)) = (self.eval_const(&l), self.eval_const(&r)) {
             if let Some(result) = self.fold(lc, &op, rc) {
                 return result;
             }
         }
 
+        // Identity Optimization (e.g., x + 0 -> x)
         match (&op, &l, &r) {
             (BinOp::Add, Expr::IntegerLiteral(0), _) => r,
             (BinOp::Add, _, Expr::IntegerLiteral(0)) => l,
@@ -168,33 +178,33 @@ impl Optimizer {
         match expr {
             Expr::IntegerLiteral(n) => Some(ConstValue::Int(*n)),
             Expr::StringLiteral(s) => Some(ConstValue::String(s.clone())),
-            // Expr::BooleanLiteral(b) => Some(ConstValue::Bool(*b)),
+            Expr::BooleanLiteral(b) => Some(ConstValue::Bool(*b)),
             _ => None,
         }
     }
 
     fn fold(&self, l: ConstValue, op: &BinOp, r: ConstValue) -> Option<Expr> {
         match (l, op, r) {
-            (ConstValue::Int(a), BinOp::Add, ConstValue::Int(b)) =>
+            (ConstValue::Int(a), BinOp::Add, ConstValue::Int(b)) => 
                 Some(Expr::IntegerLiteral(a + b)),
-
-            (ConstValue::Int(a), BinOp::Sub, ConstValue::Int(b)) =>
+            
+            (ConstValue::Int(a), BinOp::Sub, ConstValue::Int(b)) => 
                 Some(Expr::IntegerLiteral(a - b)),
 
-            // (ConstValue::Int(a), BinOp::GreaterThan, ConstValue::Int(b)) =>
-            //     Some(Expr::BooleanLiteral(a > b)),
+            (ConstValue::Int(a), BinOp::GreaterThan, ConstValue::Int(b)) => 
+                Some(Expr::BooleanLiteral(a > b)),
+            
+            (ConstValue::Int(a), BinOp::LessThan, ConstValue::Int(b)) => 
+                Some(Expr::BooleanLiteral(a < b)),
 
-            // (ConstValue::Int(a), BinOp::LessThan, ConstValue::Int(b)) =>
-            //     Some(Expr::BooleanLiteral(a < b)),
-
-            (ConstValue::String(a), BinOp::Add, ConstValue::String(b)) =>
+            (ConstValue::String(a), BinOp::Add, ConstValue::String(b)) => 
                 Some(Expr::StringLiteral(format!("{}{}", a, b))),
 
             _ => None,
         }
     }
 
-    // -------- DEAD CODE --------
+    // -------- DEAD CODE ANALYSIS --------
 
     fn collect_used_vars(&mut self, stmts: &[Stmt]) {
         for s in stmts {
@@ -217,6 +227,7 @@ impl Optimizer {
             Stmt::ExprStmt(expr) => {
                self.collect_expr(expr);
             }
+            Stmt::Paywall(_) => {} 
         }
     }
 
@@ -240,7 +251,8 @@ impl Optimizer {
     fn dead_code_elimination(&self, stmts: Vec<Stmt>) -> Vec<Stmt> {
         stmts.into_iter()
             .filter(|s| match s {
-                Stmt::VarDeclaration { name, .. } =>
+                // If a variable is declared but never used, DELETE IT.
+                Stmt::VarDeclaration { name, .. } => 
                     self.used_vars.contains(name),
                 _ => true,
             })

@@ -4,6 +4,7 @@ pub enum Expr {
     StringLiteral(String),
     BooleanLiteral(bool), 
     Identifier(String),
+    Maybe,
     Binary {
         left: Box<Expr>,
         op: BinOp,
@@ -35,8 +36,9 @@ pub enum Stmt {
         then_block: Vec<Stmt>,
         else_block: Option<Vec<Stmt>>,
     },
-     Block(Vec<Stmt>),
+    Block(Vec<Stmt>),
     ExprStmt(Expr),
+    Paywall(i64),
 }
 
 

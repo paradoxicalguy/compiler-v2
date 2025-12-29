@@ -8,6 +8,8 @@ pub fn lex_program(program: &str) -> Vec<Token> {
         "If",
         "Else",
         "Int",
+        "Maybe",
+        "Paywall",
 
         // literals
         "IntegerLiteral",
@@ -65,6 +67,8 @@ pub fn lex_program(program: &str) -> Vec<Token> {
             "If" => Token::If,
             "Else" => Token::Else,
             "Int" => Token::Int,
+            "Maybe" => Token::Maybe,
+            "Paywall" => Token::Paywall,
 
             //  literals
             "IntegerLiteral" => {

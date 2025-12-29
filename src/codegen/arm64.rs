@@ -2,240 +2,198 @@ use std::collections::HashMap;
 use crate::parsing::ast::{Expr, Stmt, BinOp};
 
 pub struct Codegen {
-    data_strings: Vec<(String, String)>,
-    vars: HashMap<String, i32>,
-    next_offset: i32,
-    instrs: Vec<String>,
-    label_id: usize,
-    temps: Vec<&'static str>,
+    out: String,
+    vars: HashMap<String, usize>, 
+    stack_offset: usize,
+    label_counter: usize,
 }
 
 impl Codegen {
     pub fn new() -> Self {
         Self {
-            data_strings: Vec::new(),
+            out: String::new(),
             vars: HashMap::new(),
-            next_offset: 0,
-            instrs: Vec::new(),
-            label_id: 0,
-            temps: vec!["x9","x10","x11","x12","x13","x14","x15"],
+            stack_offset: 0,
+            label_counter: 0,
         }
     }
-
-    // ================== ENTRY ==================
 
     pub fn generate(mut self, stmts: &[Stmt]) -> String {
-        self.emit_prologue();
-
-        for s in stmts {
-            self.gen_stmt(s);
-        }
-
-        self.emit_epilogue();
-
-        let mut out = String::new();
-
-        // ---------- DATA ----------
-        out.push_str("\t.data\n");
+        // 1. DATA SECTION 
+        let mut out = String::from("\t.data\n");
         out.push_str("fmt_int: .asciz \"%d\\n\"\n");
         out.push_str("fmt_str: .asciz \"%s\\n\"\n");
+        
+        // PAYWALL STRINGS
+        out.push_str("fmt_scan: .asciz \"%s\"\n");
+        out.push_str("msg_pay: .asciz \"free trial over pew pew, type 'haha' to continue: \"\n");
+        out.push_str("secret:  .asciz \"haha\"\n");
 
-        for (lbl, txt) in &self.data_strings {
-            out.push_str(&format!("{}: .asciz \"{}\"\n", lbl, txt));
-        }
-
-        // ---------- TEXT ----------
+        // 2. TEXT SECTION
         out.push_str("\n\t.text\n");
         out.push_str("\t.global main\n");
+        out.push_str("main:\n");
 
-        for i in &self.instrs {
-            out.push_str(i);
-            out.push('\n');
+        // Prologue
+        out.push_str("\tstp x29, x30, [sp, #-16]!\n");
+        out.push_str("\tmov x29, sp\n");
+        out.push_str("\tsub sp, sp, #512\n");
+
+        // Generate statements (populates self.out)
+        for stmt in stmts {
+            self.gen_stmt(stmt);
         }
 
-        out
-    }
-
-    // ================== HELPERS ==================
-
-    fn emit(&mut self, s: impl Into<String>) {
-        self.instrs.push(s.into());
-    }
-
-    fn label(&mut self, base: &str) -> String {
-        let l = format!("{}_{}", base, self.label_id);
-        self.label_id += 1;
-        l
-    }
-
-    fn intern(&mut self, s: &str) -> String {
-        let lbl = format!(".LC{}", self.data_strings.len());
-        self.data_strings.push((lbl.clone(), s.to_string()));
-        lbl
-    }
-
-    fn alloc_var(&mut self, name: &str) -> i32 {
-        *self.vars.entry(name.to_string()).or_insert_with(|| {
-            let off = self.next_offset;
-            self.next_offset += 8;
-            off
-        })
-    }
-
-    fn alloc_tmp(&mut self) -> &'static str {
-        self.temps.pop().expect("out of registers")
-    }
-
-    fn free_tmp(&mut self, r: &'static str) {
-        self.temps.push(r);
-    }
-
-    // ================== PROLOGUE ==================
-
-    fn emit_prologue(&mut self) {
-        self.emit("main:");
-        self.emit("\tstp x29, x30, [sp, #-16]!");
-        self.emit("\tmov x29, sp");
-        self.emit("\tsub sp, sp, #512");
-    }
-
-    fn emit_epilogue(&mut self) {
+        // Epilogue
         self.emit("\tadd sp, sp, #512");
         self.emit("\tldp x29, x30, [sp], #16");
-        self.emit("\tmov x0, #0");
+        self.emit("\tmov x0, #0"); 
         self.emit("\tret");
+
+        out + &self.out 
     }
 
-    // ================== STATEMENTS ==================
+    // --- STATEMENT GENERATION ---
 
     fn gen_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::Block(stmts) => {
-                for s in stmts {
-                    self.gen_stmt(s);
-                }
-            }
-
             Stmt::VarDeclaration { name, value } => {
-                let off = self.alloc_var(name);
                 let r = self.gen_expr(value);
-                self.emit(format!("\tstr {}, [sp, #{}]", r, off));
-                self.free_tmp(r);
+                let offset = if let Some(&off) = self.vars.get(name) {
+                    off
+                } else {
+                    let off = self.stack_offset;
+                    self.vars.insert(name.clone(), off);
+                    self.stack_offset += 8; 
+                    off
+                };
+                self.emit(format!("\tstr {}, [sp, #{}]", r, offset));
             }
 
-            Stmt::Print(expr) => match expr {
-                Expr::StringLiteral(s) => {
-                    let lbl = self.intern(s);
-                    self.emit("\tadrp x0, fmt_str");
-                    self.emit("\tadd  x0, x0, :lo12:fmt_str");
-                    self.emit(format!("\tadrp x1, {}", lbl));
-                    self.emit(format!("\tadd  x1, x1, :lo12:{}", lbl));
-                    self.emit("\tbl printf");
-                }
-                _ => {
-                    let r = self.gen_expr(expr);
-                    self.emit("\tadrp x0, fmt_int");
-                    self.emit("\tadd  x0, x0, :lo12:fmt_int");
-                    self.emit(format!("\tmov x1, {}", r));
-                    self.emit("\tbl printf");
-                    self.free_tmp(r);
-                }
-            },
+            Stmt::Print(expr) => {
+                let r = self.gen_expr(expr);
+                self.emit("\tadrp x0, fmt_int");
+                self.emit("\tadd  x0, x0, :lo12:fmt_int");
+                self.emit(format!("\tmov x1, {}", r));
+                self.emit("\tbl printf");
+            }
+
+            Stmt::Block(stmts) => {
+                for s in stmts { self.gen_stmt(s); }
+            }
 
             Stmt::If { condition, then_block, else_block } => {
-                let r = self.gen_expr(condition);
-                let else_l = self.label("else");
-                let end_l = self.label("endif");
+                let cond_reg = self.gen_expr(condition);
+                let label_else = self.label("else");
+                let label_end = self.label("endif");
 
-                self.emit(format!("\tcmp {}, #0", r));
-                self.emit(format!("\tbeq {}", else_l));
+                self.emit(format!("\tcmp {}, #0", cond_reg));
+                self.emit(format!("\tbeq {}", label_else));
 
-                for s in then_block {
-                    self.gen_stmt(s);
+                for s in then_block { self.gen_stmt(s); }
+                self.emit(format!("\tb {}", label_end));
+
+                self.emit(format!("{}:", label_else));
+                if let Some(block) = else_block {
+                    for s in block { self.gen_stmt(s); }
                 }
-
-                self.emit(format!("\tb {}", end_l));
-                self.emit(format!("{}:", else_l));
-
-                if let Some(stmts) = else_block {
-                    for s in stmts {
-                        self.gen_stmt(s);
-                    }
-                }
-
-                self.emit(format!("{}:", end_l));
-                self.free_tmp(r);
+                self.emit(format!("{}:", label_end));
             }
 
             Stmt::ExprStmt(expr) => {
-                let r = self.gen_expr(expr);
-                self.free_tmp(r);
+                self.gen_expr(expr);
+            }
+
+            // --- PAYWALL ---
+            Stmt::Paywall(_) => {
+                self.emit("\tadrp x0, msg_pay");
+                self.emit("\tadd x0, x0, :lo12:msg_pay");
+                self.emit("\tbl printf");
+
+                self.emit("\tadrp x0, fmt_scan");
+                self.emit("\tadd x0, x0, :lo12:fmt_scan");
+                self.emit("\tadd x1, sp, #400"); // buffer at sp+400
+                self.emit("\tbl scanf");
+
+                self.emit("\tadd x0, sp, #400");
+                self.emit("\tadrp x1, secret");
+                self.emit("\tadd x1, x1, :lo12:secret");
+                self.emit("\tbl strcmp");
+
+                let label_paid = self.label("paid");
+                self.emit("\tcmp x0, #0");
+                self.emit(format!("\tbeq {}", label_paid));
+
+                // Exit if wrong
+                self.emit("\tmov x0, #1"); 
+                self.emit("\tmov x8, #93");
+                self.emit("\tsvc #0");
+
+                self.emit(format!("{}:", label_paid));
             }
         }
     }
 
-    // ================== EXPRESSIONS ==================
+    // --- EXPRESSION GENERATION ---
 
-    fn gen_expr(&mut self, expr: &Expr) -> &'static str {
+    fn gen_expr(&mut self, expr: &Expr) -> String {
         match expr {
             Expr::IntegerLiteral(n) => {
                 let r = self.alloc_tmp();
-                self.emit(format!("\tmov {}, #{}", r, n));
+                self.emit(format!("\tldr {}, ={}", r, n));
                 r
             }
-
-            Expr::StringLiteral(s) => {
-                let lbl = self.intern(s);
-                let r = self.alloc_tmp();
-                self.emit(format!("\tadrp {}, {}", r, lbl));
-                self.emit(format!("\tadd  {}, {}, :lo12:{}", r, r, lbl));
-                r
-            }
-            Expr::BooleanLiteral(b) => {
-                let r = self.alloc_tmp();
-                self.emit(format!(
-                    "\tmov {}, #{}",
-                    r,
-                    if *b { 1 } else { 0 }
-                ));
-                r
-            }
-
-
             Expr::Identifier(name) => {
                 let r = self.alloc_tmp();
-                let off = self.vars.get(name).copied().unwrap_or(0);
-                self.emit(format!("\tldr {}, [sp, #{}]", r, off));
+                let offset = self.vars.get(name).copied().unwrap_or(0);
+                self.emit(format!("\tldr {}, [sp, #{}]", r, offset));
                 r
             }
-
-            Expr::Assign { name, value } => {
-                let r = self.gen_expr(value);
-                let off = self.alloc_var(name);
-                self.emit(format!("\tstr {}, [sp, #{}]", r, off));
-                r
-            }
-
             Expr::Binary { left, op, right } => {
-                let l = self.gen_expr(left);
-                let r = self.gen_expr(right);
+                let r1 = self.gen_expr(left);
+                let r2 = self.gen_expr(right);
+                let dest = self.alloc_tmp();
 
                 match op {
-                    BinOp::Add => self.emit(format!("\tadd {}, {}, {}", l, l, r)),
-                    BinOp::Sub => self.emit(format!("\tsub {}, {}, {}", l, l, r)),
+                    BinOp::Add => self.emit(format!("\tadd {}, {}, {}", dest, r1, r2)),
+                    BinOp::Sub => self.emit(format!("\tsub {}, {}, {}", dest, r1, r2)),
                     BinOp::GreaterThan => {
-                        self.emit(format!("\tcmp {}, {}", l, r));
-                        self.emit(format!("\tcset {}, gt", l));
+                        self.emit(format!("\tcmp {}, {}", r1, r2));
+                        self.emit(format!("\tcset {}, gt", dest));
                     }
                     BinOp::LessThan => {
-                        self.emit(format!("\tcmp {}, {}", l, r));
-                        self.emit(format!("\tcset {}, lt", l));
+                        self.emit(format!("\tcmp {}, {}", r1, r2));
+                        self.emit(format!("\tcset {}, lt", dest));
                     }
                 }
-
-                self.free_tmp(r);
-                l
+                dest
+            }
+            Expr::Maybe => {
+                let r = self.alloc_tmp();
+                self.emit("\tbl rand");
+                self.emit(format!("\tand {}, x0, #1", r));
+                r
+            }
+            _ => { 
+                let r = self.alloc_tmp(); 
+                self.emit(format!("\tmov {}, #0", r)); 
+                r 
             }
         }
+    }
+
+    fn alloc_tmp(&self) -> String {
+        "x14".to_string() 
+    }
+
+    fn label(&mut self, prefix: &str) -> String {
+        let l = format!("{}_{}", prefix, self.label_counter);
+        self.label_counter += 1;
+        l
+    }
+
+    fn emit(&mut self, asm: impl Into<String>) {
+        self.out.push_str(&asm.into());
+        self.out.push('\n');
     }
 }
