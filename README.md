@@ -128,13 +128,13 @@ the code generator assumes the ast is semantically valid.
 ---
 
 ## benchmarking example output:
-lexing:        15ms
-parsing:       30us
-semantic:      400us
-optimization:  200us
-codegen:       300us
-assemble:      350ms
-runtime:       25ms
+- lexing:        15ms
+- parsing:       30us
+- semantic:      400us
+- otimization:  200us
+- codegen:       300us
+- assemble:      350ms
+- runtime:       25ms
 
 
 ---
@@ -155,12 +155,9 @@ generated files:
 
 ---
 
-## status
-this project is feature-complete for its intended scope.
-
-## background and design notes
-this project is accompanied by a detailed write-up that documents
-the design decisions, tradeoffs, and implementation process:
+## blog: 
+i wrote this blog explaining how to make your own compilers, it might be same as what you see here
+changes have been made since
 
 https://rasmalai123.medium.com/compiler-b9a614f9ef7b
   
