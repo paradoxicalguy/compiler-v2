@@ -1,9 +1,9 @@
-# banana2
+# quasar v2
 a small compiler with explicit architecture
 
 ---
 
-banana2 is a deliberately small compiler written in rust that compiles a
+quasar is a deliberately small compiler written in rust that compiles a
 simple c-like language into arm64 assembly, assembles it using
 aarch64-linux-gnu-gcc, and executes it via qemu.
 
@@ -12,6 +12,16 @@ explicit phases, explicit data structures, and no hidden magic.
 
 the focus is on clear phase boundaries, invariants, and data flow rather
 than language features.
+
+## project structure
+src/
+├── lexer/        # regex-based tokenization
+├── parser/       # recursive descent parsing
+├── ast/          # explicit tree definitions
+├── semantics/    # scope tracking and type checking
+├── optimizer/    # ast-to-ast transformations
+├── codegen/      # arm64 assembly generation
+└── main.rs       # driver and phase coordination
 
 ---
 
@@ -29,63 +39,12 @@ than language features.
 - arm64 (aarch64) code generation
 - cross-architecture execution via qemu
 - built-in benchmarking for each compiler phase
+- chaos mode.
 
 ---
 
-## compiler pipeline
-
-    source code
-       |
-       v
-    lexing        -> vec<token>
-       |
-       v
-    parsing       -> ast (vec<stmt>)
-       |
-       v
-    semantic      -> validated ast
-       |
-       v
-    optimization  -> optimized ast
-       |
-       v
-    codegen       -> arm64 assembly
-       |
-       v
-    assemble      -> elf binary
-       |
-       v
-    run (qemu)
-
-each stage has a strict input/output contract.
-no stage depends on the internals of another stage.
-
----
-
-## project structure
-
-    src/
-     |
-     +-- lib.rs              compiler as a library
-     +-- main.rs             driver + benchmark
-     |
-     +-- lexing/
-     |    +-- lexer.rs
-     |    +-- token.rs
-     |
-     +-- parsing/
-     |    +-- ast.rs
-     |    +-- parser.rs
-     |
-     +-- semantic/
-     |    +-- semantic.rs
-     |
-     +-- optimizer/
-     |    +-- optimizer.rs
-     |
-     +-- codegen/
-          +-- arm64.rs
-
+## compiler pipeline: 
+source code -> lexer -> parser -> semantic analysis -> optimizer -> codegen
 each directory maps to exactly one compiler phase.
 
 ---
@@ -96,22 +55,22 @@ types:
 - int
 - string
 - bool (internal, produced by comparisons)
+- maybe (probablistic boolean)
 
 statements:
     int x = 10;
-    print(x + 1);
+    maybe m = 0.5;  // 50% chance of being true
 
-    if (x > y) {
-        print(x);
+    if (m) {
+        print("heads");
     } else {
-        print(y);
+        print("tails");
     }
 
-    {
-        int x = 1;
+    while (x > 0) {
         print(x);
+        x = x - 1;
     }
-
 expressions:
 - integer literals
 - string literals
@@ -128,6 +87,9 @@ expressions:
 - int variables must be initialized with int expressions
 - if conditions must be boolean
 - comparison operators produce boolean values
+- 'maybe' types evaluate to bool on observation (runtime)
+- 'maybe' probability must be a float literal between 0.0 and 1.0
+- while conditions must be boolean
 
 semantic errors are collected and reported together.
 
@@ -144,6 +106,7 @@ optimizations include:
 - algebraic simplification
 - dead code elimination
 - if condition folding
+- while loop condition folding
 
 the optimizer guarantees semantic equivalence.
 
@@ -163,17 +126,7 @@ the code generator assumes the ast is semantically valid.
 
 ---
 
-## benchmarking
-main.rs benchmarks:
-- lexing
-- parsing
-- semantic analysis
-- optimization
-- code generation
-- assembly
-- runtime execution
-
-## example output:
+## benchmarking example output:
 lexing:        15ms
 parsing:       30us
 semantic:      400us
@@ -209,3 +162,4 @@ this project is accompanied by a detailed write-up that documents
 the design decisions, tradeoffs, and implementation process:
 
 https://rasmalai123.medium.com/compiler-b9a614f9ef7b
+  
