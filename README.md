@@ -156,7 +156,7 @@ generated files:
 ---
 
 ## blog: 
-i wrote this blog explaining how to make your own compilers, it might be same as what you see here
+i wrote this blog explaining how to make your own compiler, it might be same as what you see here - 
 changes have been made since
 
 https://rasmalai123.medium.com/compiler-b9a614f9ef7b
