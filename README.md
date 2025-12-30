@@ -14,6 +14,7 @@ the focus is on clear phase boundaries, invariants, and data flow rather
 than language features.
 
 ## project structure
+```
 src/
 ├── lexer/        # regex-based tokenization
 ├── parser/       # recursive descent parsing
@@ -22,7 +23,7 @@ src/
 ├── optimizer/    # ast-to-ast transformations
 ├── codegen/      # arm64 assembly generation
 └── main.rs       # driver and phase coordination
-
+```
 ---
 
 ## features
